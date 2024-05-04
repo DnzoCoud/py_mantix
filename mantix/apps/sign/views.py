@@ -38,7 +38,7 @@ def register(request):
 @permission_classes([IsAuthenticated])
 def logout(request):
     request.auth.delete()
-    return Response("Logged out successfully", status=status.HTTP_200_OK)
+    return Response("Se ha cerrado Sesion", status=status.HTTP_200_OK)
 
 
 @api_view(['POST'])
