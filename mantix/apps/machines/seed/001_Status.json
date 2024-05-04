@@ -1,0 +1,9 @@
+[
+  {
+    "model": "apps.machines.Status",
+    "pk": 1,
+    "fields": {
+      "name": "Admin"
+    }
+  }
+]
