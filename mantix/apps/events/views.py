@@ -39,6 +39,7 @@ def findById(id: int) -> Response:
 @permission_classes([IsAuthenticated])
 def save(request: Request) -> Response:
     try:
+        request.data['created_by'] = request.user
         serializer = EventSerializer(data=request.data)
         if serializer.is_valid():
             serializer.save()
@@ -52,6 +53,7 @@ def save(request: Request) -> Response:
 @permission_classes([IsAuthenticated])
 def update(request: Request, id:int):
     try:
+        user = request.user
         start = request.POST.get("start")
         end = request.POST.get("end")
         status_id = request.POST.get("status")
@@ -65,7 +67,8 @@ def update(request: Request, id:int):
         if status_id is not None:
             status = get_object_or_404(Status, pk=status_id)
             event.status = status
-
+        
+        event.updated_by = user
         updatedEvent = event.save()
         serializer = EventSerializer(updatedEvent)
         return Response({"event": serializer.data}, status=status.HTTP_201_CREATED)
@@ -75,10 +78,11 @@ def update(request: Request, id:int):
 @api_view(['DELETE'])
 @authentication_classes([TokenAuthentication])
 @permission_classes([IsAuthenticated])
-def delete(id: int) :
+def delete(request: Request,id: int) :
     try:
+        user = request.user
         event = get_object_or_404(Event, id=id)
-        event.delete()
+        event.delete(deleted_by=user)
         return Response({"message": 'El mantenimiento ha sido eliminado correctamente'}, status=status.HTTP_200_OK)
     except Exception as ex:
         return Response({"error": str(ex)},status=status.HTTP_500_INTERNAL_SERVER_ERROR)
