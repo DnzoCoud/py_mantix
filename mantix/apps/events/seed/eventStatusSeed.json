@@ -1,0 +1,32 @@
+[
+    {
+        "model":"apps.events.models",
+        "fields":{
+            "name":"Programado"
+        }
+    },
+    {
+        "model":"apps.events.models",
+        "fields":{
+            "name":"Reprogramado"
+        }
+    },
+    {
+        "model":"apps.events.models",
+        "fields":{
+            "name":"En ejecucion"
+        }
+    },
+    {
+        "model":"apps.events.models",
+        "fields":{
+            "name":"Completado"
+        }
+    },
+    {
+        "model":"apps.events.models",
+        "fields":{
+            "name":"Pendiente Reprogramacion"
+        }
+    }
+]

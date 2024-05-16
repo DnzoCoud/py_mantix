@@ -10,6 +10,10 @@ from rest_framework.authentication import TokenAuthentication
 from .models import Event, Status
 from .serializers import *
 from datetime import datetime
+import base64
+import io
+import pandas as pd
+from apps.machines.models import Machine
 # Create your views here.
 
 @api_view(['GET'])
@@ -139,6 +143,52 @@ def findEventsByDay(request: Request):
         events = Event.objects.filter(start__date=fecha_especifica)
         serializer = EventSerializer(events)
         return Response({"events": serializer.data}, status=status.HTTP_200_OK)
+    except Exception as ex:
+        return Response({"error": str(ex)},status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+    
+
+@api_view(['POST'])
+@authentication_classes([TokenAuthentication])
+@permission_classes([IsAuthenticated])
+def importEventsByExcel(request: Request):
+    try:
+        excel_base64 = request.POST.get('excel_base64', None)
+        if excel_base64:
+            try:
+                excel_bytes = base64.b64decode(excel_base64)
+                excel_io = io.BytesIO(excel_bytes)
+                df = pd.read_excel(excel_io)
+                errors = []
+                for index, row in df.iterrows():
+                    try:
+                        datetime.strptime(row['Fecha Inicio'], '%Y-%m-%d')
+                        datetime.strptime(row['Fecha fin'], '%Y-%m-%d')
+                    except ValueError:
+                        errors.append({'fila': index, 'columna': 'Fecha Inicio / Fecha fin', 'message': 'Formato de fecha inválido'})
+                    
+                    machine_name = row['Maquina']
+                    if not Machine.objects.filter(name=machine_name).exists():
+                        errors.append({'fila': index, 'columna': 'Maquina', 'message': f'La máquina "{machine_name}" no existe'})
+                    
+                if errors:
+                    return Response({'error': errors})
+                else:
+                    for index, row in df.iterrows():
+                        start_date = datetime.strptime(row['Fecha Inicio'], '%Y-%m-%d')
+                        end_date = datetime.strptime(row['Fecha fin'], '%Y-%m-%d')
+                        machine_name = row['Maquina']
+                        machine = Machine.objects.filter(name=machine_name).first()
+                        Event.objects.create(
+                            start=start_date,
+                            end=end_date,
+                            created_by= request.user,
+                            machine=machine
+                        )
+                        return Response({"events": "Eventos Registrados Correctamente"}, status=status.HTTP_200_OK)
+            except Exception as ex:
+                return Response({"error": str(ex)},status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        else:
+            return Response({"error": "No se proporciono un excel en formato BASE64"},status=status.HTTP_500_INTERNAL_SERVER_ERROR)
     except Exception as ex:
         return Response({"error": str(ex)},status=status.HTTP_500_INTERNAL_SERVER_ERROR)
     
