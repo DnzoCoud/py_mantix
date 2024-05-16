@@ -21,9 +21,9 @@ class Event(models.Model):
     end = models.DateField()
     machine = models.ForeignKey(Machine, on_delete=models.DO_NOTHING, default=None)
     status = models.ForeignKey(Status, on_delete=models.DO_NOTHING, default=None)
-    created_by = models.ForeignKey(User, on_delete=models.DO_NOTHING, related_name='created_events', null=True, blank=True)
-    updated_by = models.ForeignKey(User, on_delete=models.DO_NOTHING, related_name='updated_events', null=True, blank=True)
-    deleted_by = models.ForeignKey(User, on_delete=models.DO_NOTHING, related_name='deleted_events', null=True, blank=True)
+    created_by = models.ForeignKey(User, on_delete=models.SET_NULL, related_name='created_events', null=True, blank=True)
+    updated_by = models.ForeignKey(User, on_delete=models.SET_NULL, related_name='updated_events', null=True, blank=True)
+    deleted_by = models.ForeignKey(User, on_delete=models.SET_NULL, related_name='deleted_events', null=True, blank=True)
 
     deleted = models.BooleanField(default=False)
     created_at = models.DateTimeField(auto_now_add=True)
