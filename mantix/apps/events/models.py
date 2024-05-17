@@ -1,6 +1,6 @@
 from django.db import models
 from apps.machines.models import Machine
-from django.contrib.auth.models import User
+from apps.sign.models import User
 # Create your models here.
 
 class Status(models.Model):
