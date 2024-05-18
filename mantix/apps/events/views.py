@@ -58,9 +58,9 @@ def save(request: Request) -> Response:
 def update(request: Request, id:int):
     try:
         user = request.user
-        start = request.POST.get("start")
-        end = request.POST.get("end")
-        status_id = request.POST.get("status")
+        start = request.data.get("start")
+        end = request.data.get("end")
+        status_id = request.data.get("status")
 
         event = get_object_or_404(Event, id=id)
 
@@ -107,8 +107,8 @@ def restore(id: int) :
 @permission_classes([IsAuthenticated])
 def findEventsByDate(request: Request):
     try:
-        fecha_inicio = request.POST.get('start')
-        fecha_fin = request.POST.get('end')
+        fecha_inicio = request.data.get('start')
+        fecha_fin = request.data.get('end')
 
         if not fecha_inicio.strip():
             return Response({"error": "La fecha de inicio no puede estar vacia"}, status=status.HTTP_400_BAD_REQUEST)
@@ -135,7 +135,7 @@ def findEventsByDate(request: Request):
 @permission_classes([IsAuthenticated])
 def findEventsByDay(request: Request):
     try:
-        fecha_especifica_str = request.POST.get('start')
+        fecha_especifica_str = request.data.get('start')
         if not fecha_especifica_str.strip():
             return Response({"error": "La fecha no puede estar vacia"}, status=status.HTTP_400_BAD_REQUEST)
         
@@ -152,7 +152,7 @@ def findEventsByDay(request: Request):
 @permission_classes([IsAuthenticated])
 def importEventsByExcel(request: Request):
     try:
-        excel_base64 = request.POST.get('excel_base64', None)
+        excel_base64 = request.data.get('excel_base64', None)
         if excel_base64:
             try:
                 excel_bytes = base64.b64decode(excel_base64)
