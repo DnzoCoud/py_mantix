@@ -22,7 +22,7 @@ def findAll():
 @api_view(['GET'])
 @authentication_classes([TokenAuthentication])
 @permission_classes([IsAuthenticated])
-def findById(id: int):
+def findById(request,id: int):
     try:
         machine = Machine.objects.filter( id=id,status=1).first()
         if not machine:

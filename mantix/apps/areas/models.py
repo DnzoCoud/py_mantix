@@ -5,6 +5,7 @@ from apps.sign.models import User
 class Area(models.Model):
     name = models.CharField(null=None, unique=True, max_length=200)
     director = models.ForeignKey(User, on_delete=models.SET_NULL, related_name='director_area', null=True, blank=True)
+    is_active = models.BooleanField(default=1)
     deleted = models.BooleanField(default=False)
     created_by = models.ForeignKey(User, on_delete=models.SET_NULL, related_name='created_areas', null=True, blank=True)
     updated_by = models.ForeignKey(User, on_delete=models.SET_NULL, related_name='updated_areas', null=True, blank=True)
