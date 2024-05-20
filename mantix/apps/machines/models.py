@@ -1,5 +1,6 @@
 from django.db import models
 from apps.sign.models import User
+from apps.locations.models import Location
 # Create your models here.
 class Status(models.Model):
     name = models.CharField(max_length=100)
@@ -20,6 +21,7 @@ class Machine(models.Model):
     serial = models.CharField(max_length=100)
     last_maintenance = models.DateField()
     status = models.ForeignKey(Status, on_delete=models.DO_NOTHING, default=1)
+    location = models.ForeignKey(Location, on_delete=models.SET_NULL, null=True)
     created_by = models.ForeignKey(User, on_delete=models.SET_NULL, related_name='created_machines', null=True, blank=True)
     updated_by = models.ForeignKey(User, on_delete=models.SET_NULL, related_name='updated_machines', null=True, blank=True)
     deleted_by = models.ForeignKey(User, on_delete=models.SET_NULL, related_name='deleted_machines', null=True, blank=True)
