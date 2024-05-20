@@ -12,4 +12,4 @@ class LocationSerializer(serializers.ModelSerializer):
     area_detail = AreaSerializer(source='area', read_only=True) 
     class Meta:
         model =Location
-        fields = ['name', 'area_detail', 'area', 'manager_detail', 'manager']
+        fields = ['id','name', 'area_detail', 'area', 'manager_detail', 'manager']
