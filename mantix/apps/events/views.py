@@ -30,7 +30,7 @@ def findAll(request) -> Response:
 @api_view(['GET'])
 @authentication_classes([TokenAuthentication])
 @permission_classes([IsAuthenticated])
-def findById(id: int) -> Response:
+def findById(request,id: int) -> Response:
     try:
         event = get_object_or_404(Event, id=id)
         serializer = EventSerializer(event)

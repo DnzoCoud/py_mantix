@@ -61,5 +61,4 @@ def logout(request):
 @authentication_classes([TokenAuthentication])
 @permission_classes([IsAuthenticated])
 def profile(request):
-    print(request.user)
-    return Response("You are login with {}".format(request.user.username),status=status.HTTP_200_OK)
+    return Response({"profile":request.user},status=status.HTTP_200_OK)
