@@ -11,10 +11,10 @@ from rest_framework import status
 @api_view(['GET'])
 @authentication_classes([TokenAuthentication])
 @permission_classes([IsAuthenticated])
-def findAll():
+def findAll(request):
     try:
         machines = Machine.objects.filter(status=1)
-        serializer = MachineSerializer(machines)
+        serializer = MachineSerializer(machines, many=True)
         return Response({'machines': serializer.data}, status=status.HTTP_200_OK)
     except Exception as ex:
         return Response({'error': str(ex)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)

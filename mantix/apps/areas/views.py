@@ -14,10 +14,10 @@ from .serializers import AreaSerializer
 @api_view(['GET'])
 @authentication_classes([TokenAuthentication])
 @permission_classes([IsAuthenticated])
-def findAll():
+def findAll(request):
     try:
         areas = Area.objects.filter(is_active=1)
-        serializer = AreaSerializer(areas)
+        serializer = AreaSerializer(areas, many=True)
         return Response({'areas': serializer.data}, status=status.HTTP_200_OK)
     except Exception as ex:
         return Response({'error': str(ex)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
@@ -25,7 +25,7 @@ def findAll():
 @api_view(['GET'])
 @authentication_classes([TokenAuthentication])
 @permission_classes([IsAuthenticated])
-def findById(id:int):
+def findById(request,id:int):
     try:
         area = Area.objects.filter(id=id,is_active=1).first()
         serializer = AreaSerializer(area)

@@ -21,3 +21,20 @@ class UserSerializer(serializers.ModelSerializer):
             'role',
             'role_detail'
         ]
+
+class UserDetailSerializer(serializers.ModelSerializer):
+    role = serializers.PrimaryKeyRelatedField(queryset=Role.objects.all(), write_only=True)
+    role_detail = RoleSerializer(source='role', read_only=True)  # Campo de solo lectura para la representación del rol
+    class Meta:
+        model = User
+        fields = [
+            'id', 
+            'username', 
+            'email',
+            'first_name', 
+            'last_name', 
+            'is_director', 
+            'is_manager',
+            'role',
+            'role_detail'
+        ]

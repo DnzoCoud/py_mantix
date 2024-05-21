@@ -19,7 +19,7 @@ class Machine(models.Model):
     name = models.CharField(max_length=100)
     model = models.CharField(max_length=200)
     serial = models.CharField(max_length=100)
-    last_maintenance = models.DateField()
+    last_maintenance = models.DateField(null=True)
     status = models.ForeignKey(Status, on_delete=models.DO_NOTHING, default=1)
     location = models.ForeignKey(Location, on_delete=models.SET_NULL, null=True)
     created_by = models.ForeignKey(User, on_delete=models.SET_NULL, related_name='created_machines', null=True, blank=True)

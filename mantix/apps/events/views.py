@@ -19,10 +19,10 @@ from apps.machines.models import Machine
 @api_view(['GET'])
 @authentication_classes([TokenAuthentication])
 @permission_classes([IsAuthenticated])
-def findAll() -> Response:
+def findAll(request) -> Response:
     try:
         events = Event.objects.filter(delete=False)
-        serializer = EventSerializer(instance=events)
+        serializer = EventSerializer(instance=events, many=True)
         return Response({"events": serializer.data},status=status.HTTP_200_OK)
     except Exception as ex:
         return Response({"error": str(ex)},status=status.HTTP_500_INTERNAL_SERVER_ERROR)
