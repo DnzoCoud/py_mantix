@@ -125,7 +125,7 @@ def findEventsByDate(request: Request):
         else:
             # Solo fecha de fin está presente, filtrar eventos que terminan en o antes de la fecha de fin
             events = Event.objects.filter(end__lte=fecha_fin)
-        serializer = EventSerializer(events)
+        serializer = EventSerializer(events, many=True)
         return Response({"events": serializer.data}, status=status.HTTP_200_OK)
     except Exception as ex:
         return Response({"error": str(ex)},status=status.HTTP_500_INTERNAL_SERVER_ERROR)
@@ -141,7 +141,7 @@ def findEventsByDay(request: Request):
         
         fecha_especifica = datetime.strptime(fecha_especifica_str, '%Y-%m-%d')
         events = Event.objects.filter(start__date=fecha_especifica)
-        serializer = EventSerializer(events)
+        serializer = EventSerializer(events, many=True)
         return Response({"events": serializer.data}, status=status.HTTP_200_OK)
     except Exception as ex:
         return Response({"error": str(ex)},status=status.HTTP_500_INTERNAL_SERVER_ERROR)
