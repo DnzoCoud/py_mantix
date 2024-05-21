@@ -23,6 +23,5 @@ urlpatterns = [
     path('api/location/v1/', include('apps.locations.urls')),
     path('api/area/v1/', include('apps.areas.urls')),
     path('api/machine/v1/', include('apps.machines.urls')),
-
-
+    path('api/event/v1/', include('apps.events.urls')),
 ]
