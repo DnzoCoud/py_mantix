@@ -20,10 +20,9 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # See https://docs.djangoproject.com/en/5.0/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = 'django-insecure-k+5r2_vek_8hxzjv47$p5o&kb*arcm$xgil52j)(d0z((j3bgr'
-
+SECRET_KEY = config('SECRET_KEY', default='django-insecure-k+5r2_vek_8hxzjv47$p5o&kb*arcm$xgil52j)(d0z((j3bgr')
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = config('DEBUG', default=True, cast=bool)
 
 ALLOWED_HOSTS = ['*']
 
@@ -39,6 +38,7 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles',
     'rest_framework',
     'rest_framework.authtoken',
+    'django_extensions',
     'apps.sign',
     'apps.machines',
     'apps.events',
@@ -85,10 +85,10 @@ DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.mysql',
         'NAME': config('DB_NAME'),
-        'USER':config('DB_USER'),
+        'USER':config('DB_USER', 'root'),
         'PASSWORD' : config('DB_PASSWORD'),
         'HOST' : config('DB_HOST'),
-        'PORT' : config('DB_PORT'),
+        'PORT' : config('DB_PORT', '3306'), # Use '3306' as default from env
         'OPTIONS': {
             'init_command': "SET sql_mode='STRICT_TRANS_TABLES'",
         },
