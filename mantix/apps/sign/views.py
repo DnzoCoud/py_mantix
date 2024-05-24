@@ -2,7 +2,7 @@ from rest_framework.decorators import api_view
 from rest_framework.response import Response
 from rest_framework.request import Request
 
-from .serializers import UserSerializer
+from .serializers import UserSerializer, UserDetailSerializer
 from .models import User
 from apps.roles.models import Role
 from rest_framework.authtoken.models import Token
@@ -62,3 +62,14 @@ def logout(request):
 @permission_classes([IsAuthenticated])
 def profile(request):
     return Response({"profile":request.user},status=status.HTTP_200_OK)
+
+@api_view(['GET'])
+@authentication_classes([TokenAuthentication])
+@permission_classes([IsAuthenticated])
+def findUserDirectors(request):
+    try:
+        users = User.objects.filter(is_director=True)
+        serializers = UserDetailSerializer(users, many=True)
+        return Response(serializers.data,status=status.HTTP_200_OK)
+    except Exception as ex:
+        return Response({"error":str(ex)},status=status.HTTP_500_INTERNAL_SERVER_ERROR)

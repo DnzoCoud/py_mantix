@@ -7,5 +7,5 @@ urlpatterns = [
     re_path('register', views.register),
     re_path('logout', views.logout),
     re_path('profile', views.profile),
-    
+    re_path('findUserDirectors', views.findUserDirectors)
 ]
