@@ -19,6 +19,8 @@ class Status(models.Model):
 class Event(models.Model):
     start = models.DateField(null=None)
     end = models.DateField()
+    init_time = models.TimeField(null=True)
+    end_time = models.TimeField(null=True)
     machine = models.ForeignKey(Machine, on_delete=models.DO_NOTHING, default=None)
     status = models.ForeignKey(Status, on_delete=models.DO_NOTHING, default=None)
     created_by = models.ForeignKey(User, on_delete=models.SET_NULL, related_name='created_events', null=True, blank=True)
@@ -39,3 +41,9 @@ class Event(models.Model):
         self.deleted_by = None
         self.updated_by = kwargs.pop('updated_by', None)
         self.save()
+
+
+class Activity(models.Model):
+    event = models.ForeignKey(Event, related_name="activities", on_delete=models.CASCADE)
+    name = models.CharField(max_length=200)
+    completed = models.BooleanField(default=False)

@@ -43,7 +43,7 @@ def findById(request,id: int) -> Response:
 @permission_classes([IsAuthenticated])
 def save(request: Request) -> Response:
     try:
-        request.data['created_by'] = request.user
+        request.data['created_by'] = request.user.id
         serializer = EventSerializer(data=request.data)
         if serializer.is_valid():
             serializer.save()

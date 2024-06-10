@@ -45,7 +45,8 @@ INSTALLED_APPS = [
     'apps.events',
     'apps.locations',
     'apps.areas',
-    'apps.roles'
+    'apps.roles',
+    'apps.work_order'
 ]
 
 MIDDLEWARE = [
