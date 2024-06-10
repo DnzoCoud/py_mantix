@@ -15,4 +15,4 @@ class MachineSerializer(serializers.ModelSerializer):
     location_detail = LocationSerializer(source='location', read_only=True)
     class Meta:
         model = Machine
-        fields = ['name', 'model', 'serial', 'last_maintenance', 'status','status_detail', 'location', 'location_detail']
+        fields = ['id','name', 'model', 'serial', 'last_maintenance', 'status','status_detail', 'location', 'location_detail']

@@ -73,3 +73,14 @@ def findUserDirectors(request):
         return Response(serializers.data,status=status.HTTP_200_OK)
     except Exception as ex:
         return Response({"error":str(ex)},status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+@api_view(['GET'])
+@authentication_classes([TokenAuthentication])
+@permission_classes([IsAuthenticated])
+def findManagers(request):
+    try:
+        users = User.objects.filter(is_manager=True)
+        serializers = UserDetailSerializer(users, many=True)
+        return Response(serializers.data,status=status.HTTP_200_OK)
+    except Exception as ex:
+        return Response({"error":str(ex)},status=status.HTTP_500_INTERNAL_SERVER_ERROR)

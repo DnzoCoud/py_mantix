@@ -16,12 +16,13 @@ Including another URLconf
 """
 from django.contrib import admin
 from django.urls import path, re_path, include
-
+API_V="v1"
+API_PREFIX=f"api/{API_V}"
 urlpatterns = [
     path('admin/', admin.site.urls),
-    path('api/sign/v1/', include('apps.sign.urls')),
-    path('api/location/v1/', include('apps.locations.urls')),
-    path('api/area/v1/', include('apps.areas.urls')),
-    path('api/machine/v1/', include('apps.machines.urls')),
-    path('api/event/v1/', include('apps.events.urls')),
+    path(f'{API_PREFIX}/sign/', include('apps.sign.urls')),
+    path(f'{API_PREFIX}/location/', include('apps.locations.urls')),
+    path(f'{API_PREFIX}/area/', include('apps.areas.urls')),
+    path(f'{API_PREFIX}/machine/', include('apps.machines.urls')),
+    path(f'{API_PREFIX}/event/', include('apps.events.urls')),
 ]

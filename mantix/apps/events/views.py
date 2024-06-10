@@ -9,7 +9,7 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.authentication import TokenAuthentication
 from .models import Event, Status
 from .serializers import *
-from datetime import datetime
+from datetime import datetime, timedelta
 import base64
 import io
 import pandas as pd
@@ -21,9 +21,9 @@ from apps.machines.models import Machine
 @permission_classes([IsAuthenticated])
 def findAll(request) -> Response:
     try:
-        events = Event.objects.filter(delete=False)
+        events = Event.objects.filter(deleted=False)
         serializer = EventSerializer(instance=events, many=True)
-        return Response({"events": serializer.data},status=status.HTTP_200_OK)
+        return Response(serializer.data,status=status.HTTP_200_OK)
     except Exception as ex:
         return Response({"error": str(ex)},status=status.HTTP_500_INTERNAL_SERVER_ERROR)
     
@@ -34,7 +34,7 @@ def findById(request,id: int) -> Response:
     try:
         event = get_object_or_404(Event, id=id)
         serializer = EventSerializer(event)
-        return Response({"event": serializer.data},status=status.HTTP_200_OK)
+        return Response(serializer.data,status=status.HTTP_200_OK)
     except Exception as ex:
         return Response({"error": str(ex)},status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
@@ -47,7 +47,7 @@ def save(request: Request) -> Response:
         serializer = EventSerializer(data=request.data)
         if serializer.is_valid():
             serializer.save()
-            return Response({"event": serializer.data}, status=status.HTTP_201_CREATED)
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
         return Response({"error":serializer.errors}, status=status.HTTP_400_BAD_REQUEST)
     except Exception as ex:
         return Response({"error": str(ex)},status=status.HTTP_500_INTERNAL_SERVER_ERROR)
@@ -75,7 +75,7 @@ def update(request: Request, id:int):
         event.updated_by = user
         updatedEvent = event.save()
         serializer = EventSerializer(updatedEvent)
-        return Response({"event": serializer.data}, status=status.HTTP_201_CREATED)
+        return Response(serializer.data, status=status.HTTP_201_CREATED)
     except Exception as ex:
         return Response({"error": str(ex)},status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
@@ -87,6 +87,7 @@ def delete(request: Request,id: int) :
         user = request.user
         event = get_object_or_404(Event, id=id)
         event.delete(deleted_by=user)
+        serializer = EventSerializer(event)
         return Response({"message": 'El mantenimiento ha sido eliminado correctamente'}, status=status.HTTP_200_OK)
     except Exception as ex:
         return Response({"error": str(ex)},status=status.HTTP_500_INTERNAL_SERVER_ERROR)
@@ -102,7 +103,7 @@ def restore(id: int) :
     except Exception as ex:
         return Response({"error": str(ex)},status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
-@api_view(['POST'])
+@api_view(['GET'])
 @authentication_classes([TokenAuthentication])
 @permission_classes([IsAuthenticated])
 def findEventsByDate(request: Request):
@@ -126,23 +127,26 @@ def findEventsByDate(request: Request):
             # Solo fecha de fin está presente, filtrar eventos que terminan en o antes de la fecha de fin
             events = Event.objects.filter(end__lte=fecha_fin)
         serializer = EventSerializer(events, many=True)
-        return Response({"events": serializer.data}, status=status.HTTP_200_OK)
+        return Response(serializer.data, status=status.HTTP_200_OK)
     except Exception as ex:
         return Response({"error": str(ex)},status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
-@api_view(['POST'])
+@api_view(['GET'])
 @authentication_classes([TokenAuthentication])
 @permission_classes([IsAuthenticated])
 def findEventsByDay(request: Request):
     try:
-        fecha_especifica_str = request.data.get('start')
+        fecha_especifica_str = request.query_params.get('start')
         if not fecha_especifica_str.strip():
             return Response({"error": "La fecha no puede estar vacia"}, status=status.HTTP_400_BAD_REQUEST)
         
-        fecha_especifica = datetime.strptime(fecha_especifica_str, '%Y-%m-%d')
-        events = Event.objects.filter(start__date=fecha_especifica)
+        fecha_especifica = datetime.strptime(fecha_especifica_str, '%Y-%m-%d').date()
+        fecha_inicio = datetime.combine(fecha_especifica, datetime.min.time())
+        fecha_fin = fecha_inicio + timedelta(days=1)
+
+        events = Event.objects.filter(start__gte=fecha_inicio, start__lt=fecha_fin)
         serializer = EventSerializer(events, many=True)
-        return Response({"events": serializer.data}, status=status.HTTP_200_OK)
+        return Response(serializer.data, status=status.HTTP_200_OK)
     except Exception as ex:
         return Response({"error": str(ex)},status=status.HTTP_500_INTERNAL_SERVER_ERROR)
     

@@ -22,7 +22,7 @@ def findAll(request):
     try:
         locations = Location.objects.filter(is_active=1)
         serializer = LocationSerializer(locations, many=True)
-        return Response({'locations': serializer.data}, status=status.HTTP_200_OK)
+        return Response(serializer.data, status=status.HTTP_200_OK)
     except Exception as ex:
         return Response({'error': str(ex)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
     
@@ -35,7 +35,7 @@ def findById(request,id:int):
         if not location:
             return Response({'error': 'Esta locacion no existe o esta inactiva'}, status=status.HTTP_404_NOT_FOUND)
         serializer = LocationSerializer(location)
-        return Response({'location': serializer.data}, status=status.HTTP_200_OK)
+        return Response(serializer.data, status=status.HTTP_200_OK)
     except Exception as ex:
         return Response({'error': str(ex)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
@@ -48,7 +48,7 @@ def save(request):
         serializer = LocationSerializer(data=request.data)
         if serializer.is_valid():
             serializer.save()
-            return Response({"location": serializer.data}, status=status.HTTP_201_CREATED)
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
         return Response({"error":serializer.errors}, status=status.HTTP_400_BAD_REQUEST)            
     except Exception as ex:
         return Response({'error': str(ex)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
