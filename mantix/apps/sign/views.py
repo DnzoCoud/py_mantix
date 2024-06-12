@@ -1,3 +1,7 @@
+import base64
+import io
+import pandas as pd
+import re
 from rest_framework.decorators import api_view
 from rest_framework.response import Response
 from rest_framework.request import Request
@@ -68,7 +72,7 @@ def profile(request):
 @permission_classes([IsAuthenticated])
 def findUserDirectors(request):
     try:
-        users = User.objects.filter(is_director=True)
+        users = User.objects.filter(is_director=True, role=7)
         serializers = UserDetailSerializer(users, many=True)
         return Response(serializers.data,status=status.HTTP_200_OK)
     except Exception as ex:
@@ -79,8 +83,158 @@ def findUserDirectors(request):
 @permission_classes([IsAuthenticated])
 def findManagers(request):
     try:
-        users = User.objects.filter(is_manager=True)
+        users = User.objects.filter(is_manager=True, role=6)
         serializers = UserDetailSerializer(users, many=True)
         return Response(serializers.data,status=status.HTTP_200_OK)
     except Exception as ex:
         return Response({"error":str(ex)},status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+@api_view(['GET'])
+@authentication_classes([TokenAuthentication])
+@permission_classes([IsAuthenticated])
+def findTechnicals(request):
+    try:
+        users = User.objects.filter(role=4)
+        serializers = UserDetailSerializer(users, many=True)
+        return Response(serializers.data,status=status.HTTP_200_OK)
+    except Exception as ex:
+        return Response({"error":str(ex)},status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+@api_view(['GET'])
+@authentication_classes([TokenAuthentication])
+@permission_classes([IsAuthenticated])
+def findById(request,id: int):
+    try:
+        user = User.objects.filter( id=id,status=1).first()
+        if not user:
+            return Response({'error': 'Este usuario no existe o no se encuentra'}, status=status.HTTP_404_NOT_FOUND)
+        serializer = UserDetailSerializer(user)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+    except Exception as ex:
+        return Response({'error': str(ex)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+@api_view(['PATCH'])
+@authentication_classes([TokenAuthentication])
+@permission_classes([IsAuthenticated])
+def update(request: Request):
+    try:
+        user_id = request.data.get("id")
+        if user_id is None:
+            return Response({"error": "No se proporciona el id del usuario que se va a actualizar"}, status=status.HTTP_400_BAD_REQUEST)
+
+        first_name = request.data.get("first_name")
+        last_name = request.data.get("last_name")
+        username = request.data.get("username")
+        email = request.data.get("email")
+        role_id = request.data.get("role")
+        password = request.data.get("password")
+
+        user = get_object_or_404(User, id=user_id)
+
+        # Validar que el nuevo username y email no se repitan en otros usuarios
+        if username and User.objects.filter(username=username).exclude(id=user_id).exists():
+            return Response({"error": f'El username "{username}" ya está en uso'}, status=status.HTTP_400_BAD_REQUEST)
+        if email and User.objects.filter(email=email).exclude(id=user_id).exists():
+            return Response({"error": f'El correo "{email}" ya está en uso'}, status=status.HTTP_400_BAD_REQUEST)
+
+        if first_name is not None:
+            user.first_name = first_name
+        if last_name is not None:
+            user.last_name = last_name
+        if username is not None:
+            user.username = username
+        if email is not None:
+            user.email = email
+        if password is not None:
+            user.set_password(password)  # Encriptar la nueva contraseña
+        if role_id is not None:
+            roleObject = get_object_or_404(Role, pk=role_id)
+            user.role = roleObject
+        
+        user.save()
+        serializer = UserDetailSerializer(user)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+    except Exception as ex:
+        return Response({"error": str(ex)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+    
+
+@api_view(['POST'])
+@authentication_classes([TokenAuthentication])
+@permission_classes([IsAuthenticated])
+def importUsersByExcel(request, role):
+    try:
+        # Obtener el archivo Excel y leerlo
+        excel_base64 = request.data.get('excel_base64', None)
+        if excel_base64:
+            try:
+                excel_bytes = base64.b64decode(excel_base64)
+                excel_io = io.BytesIO(excel_bytes)
+                df = pd.read_excel(excel_io, header=None)
+                
+                # Encontrar la fila del encabezado
+                header_row_idx = None
+                for i, row in df.iterrows():
+                    if 'Nombre de Usuario' in row.values and 'Nombre' in row.values and 'Apellido' in row.values and 'correo' in row.values:
+                        header_row_idx = i
+                        break
+                
+                if header_row_idx is None:
+                    return Response({"error": "No se encontró la fila del encabezado con las columnas esperadas"}, status=status.HTTP_400_BAD_REQUEST)
+                
+                # Establecer la fila del encabezado
+                df.columns = df.iloc[header_row_idx]
+                df = df.drop(index=list(range(0, header_row_idx + 1)))
+                df.reset_index(drop=True, inplace=True)
+
+                errors = []
+
+                for index, row in df.iterrows():
+                    # Obtener los datos del usuario desde el Excel
+                    username = row['Nombre de Usuario'].strip()
+                    first_name = row['Nombre'].strip()
+                    last_name = row['Apellido'].strip()
+                    email = row['correo'].strip()
+
+                    # Validar que no existan usuarios con el mismo username o correo
+                    if User.objects.filter(username=username).exists():
+                        errors.append({'fila': index, 'columna': 'Nombre de Usuario', 'message': f'El username "{username}" ya está en uso'})
+                    if User.objects.filter(email=email).exists():
+                        errors.append({'fila': index, 'columna': 'correo', 'message': f'El correo "{email}" ya está en uso'})
+
+                if errors:
+                    return Response({'error': errors}, status=status.HTTP_400_BAD_REQUEST)
+                else:
+                    users = []
+                    # Registrar los usuarios con el rol especificado
+                    for index, row in df.iterrows():
+                        username = row['Nombre de Usuario'].strip()
+                        first_name = row['Nombre'].strip()
+                        last_name = row['Apellido'].strip()
+                        email = row['correo'].strip()
+
+                        # Crear el usuario con el rol especificado
+                        if role == 'directores':
+                            roleObject = Role.objects.filter(id=7).first()
+
+                            user = User.objects.create_user(username=username, first_name=first_name, last_name=last_name, email=email, password='mantixnwusr2024*', is_director=True, role=roleObject)
+                            # user.groups.add(directores_group)
+                        elif role == 'managers':
+                            roleObject = Role.objects.filter(id=6).first()
+
+                            user = User.objects.create_user(username=username, first_name=first_name, last_name=last_name, email=email, password='mantixnwusr2024*', is_manager=True, role=roleObject)
+                            # user.groups.add(managers_group)
+                        elif role == 'tecnicos':
+                            roleObject = Role.objects.filter(id=4).first()
+                            user = User.objects.create_user(username=username, first_name=first_name, last_name=last_name, email=email, password='mantixnwusr2024*', role=roleObject)
+                            # user.groups.add(tecnicos_group)
+                        else:
+                            return Response({"error": "El rol especificado no es válido"}, status=status.HTTP_400_BAD_REQUEST)
+                        users.append(user)
+                        serializers = UserDetailSerializer(users, many=True)
+                    return Response(serializers.data, status=status.HTTP_200_OK)
+            except Exception as ex:
+                return Response({"error": str(ex)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        else:
+            return Response({"error": "No se proporcionó un excel en formato BASE64"}, status=status.HTTP_400_BAD_REQUEST)
+    except Exception as ex:
+        return Response({"error": str(ex)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)

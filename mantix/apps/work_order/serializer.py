@@ -12,6 +12,7 @@ class WorkOrderSerializer(serializers.ModelSerializer):
             'id',
             'diagnosis',
             'observation',
+            'cause',
             'event',
             'event_detail'
         ]
