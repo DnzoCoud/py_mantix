@@ -26,5 +26,7 @@ urlpatterns = [
     path(f'{API_PREFIX}/machine/', include('apps.machines.urls')),
     path(f'{API_PREFIX}/event/', include('apps.events.urls')),
     path(f'{API_PREFIX}/workOrder/', include('apps.work_order.urls')),
+    path(f'{API_PREFIX}/role/', include('apps.roles.urls')),
+
 
 ]

@@ -15,7 +15,22 @@ from django.shortcuts import get_object_or_404
 from rest_framework.decorators import authentication_classes, permission_classes
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.authentication import TokenAuthentication
+from enum import Enum
+from apps.roles.serializers import RoleSerializer
+
+
+class Roles(Enum):
+    ADMIN = 1
+    GUEST = 2
+    VISUALIZER = 3
+    TECHNICAL = 4
+    PROVIDER = 5 
+    MANAGER = 6
+    DIRECTOR = 7
+
 # Create your views here.
+
+
 @api_view(['POST'])
 def login(request):
     user = get_object_or_404(User, email=request.data['email'])
@@ -65,14 +80,27 @@ def logout(request):
 @authentication_classes([TokenAuthentication])
 @permission_classes([IsAuthenticated])
 def profile(request):
-    return Response({"profile":request.user},status=status.HTTP_200_OK)
+    return Response(request.user,status=status.HTTP_200_OK)
 
 @api_view(['GET'])
 @authentication_classes([TokenAuthentication])
 @permission_classes([IsAuthenticated])
 def findUserDirectors(request):
     try:
-        users = User.objects.filter(is_director=True, role=7)
+        users = User.objects.filter(is_director=True, role=Roles.DIRECTOR.value, is_active=True)
+        serializers = UserDetailSerializer(users, many=True)
+        return Response(serializers.data,status=status.HTTP_200_OK)
+    except Exception as ex:
+        return Response({"error":str(ex)},status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+
+@api_view(['GET'])
+@authentication_classes([TokenAuthentication])
+@permission_classes([IsAuthenticated])
+def findAll(request):
+    try:
+        users = User.objects.filter(is_active=True).exclude(role=Roles.ADMIN.value)
         serializers = UserDetailSerializer(users, many=True)
         return Response(serializers.data,status=status.HTTP_200_OK)
     except Exception as ex:
@@ -83,7 +111,7 @@ def findUserDirectors(request):
 @permission_classes([IsAuthenticated])
 def findManagers(request):
     try:
-        users = User.objects.filter(is_manager=True, role=6)
+        users = User.objects.filter(is_manager=True, role=Roles.MANAGER.value)
         serializers = UserDetailSerializer(users, many=True)
         return Response(serializers.data,status=status.HTTP_200_OK)
     except Exception as ex:
@@ -94,7 +122,7 @@ def findManagers(request):
 @permission_classes([IsAuthenticated])
 def findTechnicals(request):
     try:
-        users = User.objects.filter(role=4)
+        users = User.objects.filter(role=Roles.TECHNICAL.value)
         serializers = UserDetailSerializer(users, many=True)
         return Response(serializers.data,status=status.HTTP_200_OK)
     except Exception as ex:
@@ -105,9 +133,47 @@ def findTechnicals(request):
 @permission_classes([IsAuthenticated])
 def findById(request,id: int):
     try:
-        user = User.objects.filter( id=id,status=1).first()
+        user = User.objects.filter( id=id,is_active=True).first()
         if not user:
             return Response({'error': 'Este usuario no existe o no se encuentra'}, status=status.HTTP_404_NOT_FOUND)
+        serializer = UserDetailSerializer(user)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+    except Exception as ex:
+        return Response({'error': str(ex)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+    
+@api_view(['POST'])
+@authentication_classes([TokenAuthentication])
+@permission_classes([IsAuthenticated])
+def save(request):
+    try:
+        username = request.data.get('username').strip()
+        first_name = request.data.get('first_name').strip()
+        last_name = request.data.get('last_name').strip()
+        email = request.data.get('email').strip()
+        role_id= request.data.get('role')
+        role_object = Role.objects.get(id=role_id)
+
+        if not role_object:
+            return Response({'error': 'El rol no existe o no se encuentra'}, status=status.HTTP_404_NOT_FOUND)
+
+        if User.objects.filter(username=username).exists():
+            return Response({'error': 'El usuario ya existe en el sistema'}, status=status.HTTP_400_BAD_REQUEST)
+    
+        if User.objects.filter(email=email).exists():
+            return Response({'error': 'El correo ya existe en el sistema'}, status=status.HTTP_400_BAD_REQUEST)
+        
+        user = User.objects.create(
+            username=username,
+            first_name=first_name,
+            last_name=last_name,
+            email=email,
+            is_director=True,
+            role=role_object
+        )
+        user.set_password('mantixnwusr2024*')
+        user.save()
         serializer = UserDetailSerializer(user)
         return Response(serializer.data, status=status.HTTP_200_OK)
     except Exception as ex:
@@ -213,22 +279,43 @@ def importUsersByExcel(request, role):
                         email = row['correo'].strip()
 
                         # Crear el usuario con el rol especificado
+                        role_object = None
                         if role == 'directores':
-                            roleObject = Role.objects.filter(id=7).first()
-
-                            user = User.objects.create_user(username=username, first_name=first_name, last_name=last_name, email=email, password='mantixnwusr2024*', is_director=True, role=roleObject)
+                            role_object = Role.objects.get(id=Roles.DIRECTOR.value)
+                            user = User.objects.create(
+                                username=username,
+                                first_name=first_name,
+                                last_name=last_name,
+                                email=email,
+                                is_director=True,
+                                role=role_object
+                            )
                             # user.groups.add(directores_group)
                         elif role == 'managers':
-                            roleObject = Role.objects.filter(id=6).first()
-
-                            user = User.objects.create_user(username=username, first_name=first_name, last_name=last_name, email=email, password='mantixnwusr2024*', is_manager=True, role=roleObject)
+                            role_object = Role.objects.get(id=Roles.MANAGER.value)
+                            user = User.objects.create(
+                                username=username,
+                                first_name=first_name,
+                                last_name=last_name,
+                                email=email,
+                                is_manager=True,
+                                role=role_object
+                            )
                             # user.groups.add(managers_group)
                         elif role == 'tecnicos':
-                            roleObject = Role.objects.filter(id=4).first()
-                            user = User.objects.create_user(username=username, first_name=first_name, last_name=last_name, email=email, password='mantixnwusr2024*', role=roleObject)
+                            role_object = Role.objects.get(id=Roles.TECHNICAL.value)
+                            user = User.objects.create(
+                                username=username,
+                                first_name=first_name,
+                                last_name=last_name,
+                                email=email,
+                                role=role_object
+                            )
                             # user.groups.add(tecnicos_group)
                         else:
                             return Response({"error": "El rol especificado no es válido"}, status=status.HTTP_400_BAD_REQUEST)
+                        user.set_password('mantixnwusr2024*')
+                        user.save()
                         users.append(user)
                         serializers = UserDetailSerializer(users, many=True)
                     return Response(serializers.data, status=status.HTTP_200_OK)
