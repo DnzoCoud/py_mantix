@@ -13,11 +13,13 @@ class Area(models.Model):
 
     def delete(self, *args, **kwargs):
         self.deleted = True
+        self.is_active = False
         self.deleted_by = kwargs.pop('deleted_by', None)
         self.save()
 
     def restore(self, **kwargs):
         self.deleted = False
+        self.is_active = True
         self.updated_by = kwargs.pop('updated_by', None)
         self.save()
 

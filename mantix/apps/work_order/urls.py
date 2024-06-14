@@ -7,4 +7,6 @@ urlpatterns = [
     re_path(r'findWorkOrderByEventId/(?P<eventId>\d+)', views.findWorkOrderByEventId, name='workOrder_find_by_id'),
     re_path('save', views.save, name='workOrder_save'),
     path('update', views.update, name='workOrder_update'),
+    path('generateWorkOrderPDF', views.generateWorkOrderPDF, name='workOrder_generateWorkOrderPDF'),
+
 ]
