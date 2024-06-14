@@ -15,6 +15,7 @@ import base64
 import io
 import pandas as pd
 from apps.machines.models import Machine
+from apps.sign.models import User
 # Create your views here.
 
 @api_view(['GET'])
@@ -90,6 +91,8 @@ def update(request):
         init_time = request.data.get("init_time")
         end_time = request.data.get("end_time")
         activities = request.data.get("activity_data")
+        technical_id = request.data.get("technical")
+
 
         event = get_object_or_404(Event, id=id)
 
@@ -104,6 +107,9 @@ def update(request):
         if status_id is not None:
             statusObject = get_object_or_404(Status, pk=status_id)
             event.status = statusObject
+        if technical_id is not None:
+            userObject = get_object_or_404(User, pk=technical_id)
+            event.technical = userObject
 
         if activities is not None:
             for activity_data in activities:
