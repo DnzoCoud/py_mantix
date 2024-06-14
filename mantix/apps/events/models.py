@@ -44,6 +44,7 @@ class Event(models.Model):
     updated_by = models.ForeignKey(User, on_delete=models.SET_NULL, related_name='updated_events', null=True, blank=True)
     deleted_by = models.ForeignKey(User, on_delete=models.SET_NULL, related_name='deleted_events', null=True, blank=True)
     day = models.ForeignKey(Day, on_delete=models.CASCADE, related_name='events_days', null=True)
+    technical = models.ForeignKey(User, on_delete=models.SET_NULL, related_name='technical_events', null=True, blank=True)
     deleted = models.BooleanField(default=False)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)

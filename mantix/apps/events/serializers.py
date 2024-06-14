@@ -2,6 +2,8 @@ from rest_framework import serializers
 from .models import Event, Status, Activity, Day
 from apps.machines.models import Machine
 from apps.machines.serializers import MachineSerializer
+from apps.sign.models import User
+from apps.sign.serializers import UserDetailSerializer
 
 
 class StatusSerializer(serializers.ModelSerializer):
@@ -35,6 +37,8 @@ class EventSerializer(serializers.ModelSerializer):
     activities = ActivitySerializer(many=True, read_only=True)  # Add this line
     day = serializers.PrimaryKeyRelatedField(queryset=Day.objects.all(), write_only=True)  # Campo para el día relacionado
     day_detail = DaySerializer(source='day', read_only=True)  # Campo detallado para el día relacionado
+    technical = serializers.PrimaryKeyRelatedField(queryset=User.objects.all(), write_only=True)
+    technical_detail = UserDetailSerializer(source='technical', read_only=True)
     class Meta:
         model = Event
         fields = [
@@ -50,7 +54,9 @@ class EventSerializer(serializers.ModelSerializer):
             'status_detail',
             'activities',
             'day',
-            'day_detail'
+            'day_detail',
+            'technical',
+            'technical_detail'
         ]
 
     def create(self, validated_data):
