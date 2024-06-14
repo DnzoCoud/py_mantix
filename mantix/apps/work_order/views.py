@@ -89,9 +89,9 @@ def update(request: Request):
 @api_view(['GET'])
 @authentication_classes([TokenAuthentication])
 @permission_classes([IsAuthenticated])
-def generateWorkOrderPDF(request:Request):
+def generateWorkOrderPDF(request:Request, id:int):
     logo_url = request.build_absolute_uri(settings.STATIC_URL + 'images/Logo.png')
-    workOrder:WorkOrder = WorkOrder.objects.get(id=1)
+    workOrder:WorkOrder = WorkOrder.objects.get(id=id)
     # Obtener la fecha del evento y formatearla
     event_date = workOrder.event.start
     day = DateFormat(event_date).format('d')
