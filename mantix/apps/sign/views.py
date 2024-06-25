@@ -34,6 +34,21 @@ class Roles(Enum):
 @api_view(['POST'])
 def login(request):
     user = get_object_or_404(User, email=request.data['email'])
+    if not user.is_active:
+        return Response({"error": "Usuario deshabilitado"}, status=status.HTTP_400_BAD_REQUEST)
+
+    if not user.check_password(request.data['password']):
+        return Response({"error": "Invalid Password"}, status=status.HTTP_400_BAD_REQUEST)
+    
+    token, created = Token.objects.get_or_create(user=user)
+    serializer = UserSerializer(instance=user)
+    return Response({"token": token.key, "user": serializer.data},status=status.HTTP_200_OK)
+
+@api_view(['POST'])
+def loginTechnical(request):
+    user = get_object_or_404(User, email=request.data['email'], role=Roles.TECHNICAL.value)
+    if not user.is_active:
+        return Response({"error": "Usuario deshabilitado"}, status=status.HTTP_400_BAD_REQUEST)
     if not user.check_password(request.data['password']):
         return Response({"error": "Invalid Password"}, status=status.HTTP_400_BAD_REQUEST)
     
