@@ -15,5 +15,6 @@ urlpatterns = [
     re_path(r'findById/(?P<id>\d+)', views.findById, name='machine_find_by_id'),
     re_path('save', views.save),
     re_path('findAll', views.findAll),
+    re_path('loginTechnical', views.loginTechnical),
 
 ]
