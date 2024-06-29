@@ -55,6 +55,9 @@ cd mantix
 pip install -r requirements.txt
 ```
 
+### 6. Copiar el .env en la carpeta mantix
+Una vezx hechos los pasos anteriores yo les proporcionare un archivo .env para que lo pegen en la carpeta donde se encuentran actualmente
+
 ### 5. Ejecutar el servidor de desarrollo
 Inicia el servidor de desarrollo de Django:
 ```bash
