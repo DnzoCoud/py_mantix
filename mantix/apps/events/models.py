@@ -86,6 +86,7 @@ class Event(models.Model):
         self.save()
 
 
+# comment
 class Activity(models.Model):
     event = models.ForeignKey(
         Event, related_name="activities", on_delete=models.CASCADE
