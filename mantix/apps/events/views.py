@@ -8,7 +8,7 @@ from django.shortcuts import get_object_or_404
 from rest_framework.decorators import authentication_classes, permission_classes
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.authentication import TokenAuthentication
-from .models import Event, Status, Activity, Day
+from .models import Event, Status, Activity, Day, HistoryStatus
 from .serializers import *
 from datetime import datetime, timedelta
 import base64
@@ -95,6 +95,18 @@ def save(request: Request) -> Response:
         )
 
 
+def convert_iso_date_to_yyyymmdd(iso_date_str):
+    try:
+        # Intenta convertir la cadena ISO 8601 a un objeto datetime
+        iso_date = datetime.strptime(iso_date_str, "%Y-%m-%dT%H:%M:%S.%fZ")
+        # Formatea la fecha a YYYY-MM-DD si iso_date es válido
+        formatted_date = iso_date.strftime("%Y-%m-%d")
+        return formatted_date
+    except ValueError:
+        # Si no se puede convertir según el formato ISO 8601, devuelve la cadena original
+        return iso_date_str
+
+
 @api_view(["PATCH"])
 @authentication_classes([TokenAuthentication])
 @permission_classes([IsAuthenticated])
@@ -118,16 +130,34 @@ def update(request):
         event = get_object_or_404(Event, id=id)
 
         if start is not None:
-            event.start = start
+            event.start = convert_iso_date_to_yyyymmdd(start)
         if end is not None:
-            event.end = end
+            event.end = convert_iso_date_to_yyyymmdd(end)
         if init_time is not None:
             event.init_time = init_time
         if end_time is not None:
             event.end_time = end_time
         if status_id is not None:
-            statusObject = get_object_or_404(Status, pk=status_id)
-            event.status = statusObject
+            status_object = get_object_or_404(Status, pk=status_id)
+            history = HistoryStatus.objects.filter(event=event.id)
+            if history.exists():
+                history_instance = history.first()
+                # Actualizar los campos del historial
+                if status_id != event.status.id:
+                    history_instance.previous_state = event.status
+                history_instance.actual_state = status_object
+                history_instance.save()
+            else:
+                history_instance = HistoryStatus(
+                    event=event,
+                    previous_state=(
+                        event.status if status_id != event.status.id else None
+                    ),
+                    actual_state=status_object,
+                )
+                history_instance.save()
+            event.status = status_object
+            event.save()
 
         if activities is not None:
             for activity_data in activities:

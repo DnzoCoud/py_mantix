@@ -3,9 +3,8 @@ from apps.machines.models import Machine
 from apps.sign.models import User
 from datetime import date
 
+
 # Create your models here.
-
-
 class Status(models.Model):
     name = models.CharField(max_length=100)
     deleted = models.BooleanField(default=False)
@@ -100,3 +99,25 @@ class Activity(models.Model):
         null=True,
         blank=True,
     )
+
+
+class HistoryStatus(models.Model):
+    event = models.OneToOneField(
+        Event, on_delete=models.CASCADE, related_name="history_status"
+    )
+    previous_state = models.ForeignKey(
+        Status,
+        related_name="previous_statuses",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=False,
+    )
+    actual_state = models.ForeignKey(
+        Status,
+        related_name="actual_statuses",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=False,
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
