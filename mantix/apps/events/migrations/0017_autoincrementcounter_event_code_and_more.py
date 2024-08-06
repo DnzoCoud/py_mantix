@@ -2,16 +2,19 @@
 
 import django.db.models.deletion
 from django.db import migrations, models
-from apps.events.models import Event, AutoIncrementCounter
 
 
-def assign_codes():
+def assign_codes(apps, schema_editor):
+    # Obtener los modelos usando el parámetro apps
+    Event = apps.get_model("events", "Event")
+    AutoIncrementCounter = apps.get_model("events", "AutoIncrementCounter")
 
-    # Get or create the counter instance
+    # Obtener o crear la instancia del contador
     counter, created = AutoIncrementCounter.objects.get_or_create(id=1)
 
     for event in Event.objects.all():
         if not event.code:
+            # Incrementar el contador y asignar un nuevo código
             counter.counter += 1
             counter.save()
             event.code = str(counter.counter).zfill(6)
