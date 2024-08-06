@@ -4,28 +4,56 @@ import django.db.models.deletion
 from django.db import migrations, models
 
 
+def assign_codes(apps, schema_editor):
+    Event = apps.get_model("event", "Event")
+    AutoIncrementCounter = apps.get_model("event", "AutoIncrementCounter")
+
+    # Get or create the counter instance
+    counter, _ = AutoIncrementCounter.objects.get_or_create(id=1)
+
+    for event in Event.objects.all():
+        if not event.code:
+            counter.counter += 1
+            counter.save()
+            event.code = str(counter.counter).zfill(6)
+            event.save()
+
+
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('events', '0016_alter_historystatus_event'),
+        ("events", "0016_alter_historystatus_event"),
     ]
 
     operations = [
         migrations.CreateModel(
-            name='AutoIncrementCounter',
+            name="AutoIncrementCounter",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('counter', models.IntegerField(default=0)),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="ID",
+                    ),
+                ),
+                ("counter", models.IntegerField(default=0)),
             ],
         ),
         migrations.AddField(
-            model_name='event',
-            name='code',
+            model_name="event",
+            name="code",
             field=models.CharField(blank=True, max_length=10, unique=True),
         ),
+        migrations.RunPython(assign_codes),
         migrations.AlterField(
-            model_name='historystatus',
-            name='event',
-            field=models.OneToOneField(on_delete=django.db.models.deletion.CASCADE, related_name='history_status', to='events.event'),
+            model_name="historystatus",
+            name="event",
+            field=models.OneToOneField(
+                on_delete=django.db.models.deletion.CASCADE,
+                related_name="history_status",
+                to="events.event",
+            ),
         ),
     ]
