@@ -43,6 +43,21 @@ class Migration(migrations.Migration):
     ]
 
     operations = [
+        migrations.CreateModel(
+            name="AutoIncrementCounter",
+            fields=[
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="ID",
+                    ),
+                ),
+                ("counter", models.IntegerField(default=0)),
+            ],
+        ),
         migrations.AddField(
             model_name="event",
             name="code",
