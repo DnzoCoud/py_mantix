@@ -5,8 +5,8 @@ from django.db import migrations, models
 
 
 def assign_codes(apps, schema_editor):
-    Event = apps.get_model("event", "Event")
-    AutoIncrementCounter = apps.get_model("event", "AutoIncrementCounter")
+    Event = apps.get_model("events", "Event")
+    AutoIncrementCounter = apps.get_model("events", "AutoIncrementCounter")
 
     # Get or create the counter instance
     counter, _ = AutoIncrementCounter.objects.get_or_create(id=1)
