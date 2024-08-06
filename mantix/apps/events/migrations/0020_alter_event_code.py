@@ -58,11 +58,6 @@ class Migration(migrations.Migration):
                 ("counter", models.IntegerField(default=0)),
             ],
         ),
-        migrations.AddField(
-            model_name="event",
-            name="code",
-            field=models.CharField(blank=True, max_length=10),
-        ),
         migrations.AlterField(
             model_name="event",
             name="code",
