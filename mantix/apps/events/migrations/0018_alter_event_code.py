@@ -3,39 +3,6 @@
 from django.db import migrations, models
 
 
-def populate_event_codes(apps, schema_editor):
-    Event = apps.get_model("events", "Event")
-    AutoIncrementCounter = apps.get_model("events", "AutoIncrementCounter")
-
-    # Crear o obtener el objeto AutoIncrementCounter
-    counter, created = AutoIncrementCounter.objects.get_or_create(id=1)
-
-    # Obtener todos los eventos que no tienen un código
-    events_without_code = Event.objects.filter(code="").order_by("id")
-
-    # Preparar una lista de eventos a actualizar
-    events_to_update = []
-
-    # Base 10 para el formato de código, ajusta el valor según el número máximo de dígitos que necesitas
-    base = 10
-
-    for i, event in enumerate(events_without_code):
-        # Calcular el valor del código basado en la posición
-        # Generar el código como una cadena con ceros a la izquierda
-        code_value = str(base**i).zfill(
-            6
-        )  # 6 es el número máximo de dígitos que deseas
-        event.code = code_value
-        events_to_update.append(event)
-
-    # Actualizar todos los eventos en una sola operación
-    if events_to_update:
-        Event.objects.bulk_update(events_to_update, ["code"])
-
-    # Actualizar el contador con el valor actual
-    counter.save()
-
-
 class Migration(migrations.Migration):
 
     dependencies = [
@@ -46,7 +13,6 @@ class Migration(migrations.Migration):
         migrations.AlterField(
             model_name="event",
             name="code",
-            field=models.CharField(blank=True, max_length=10, unique=True),
+            field=models.CharField(blank=True, max_length=10),
         ),
-        migrations.RunPython(populate_event_codes),
     ]
