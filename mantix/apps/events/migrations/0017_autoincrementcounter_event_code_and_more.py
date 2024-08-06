@@ -12,14 +12,21 @@ def populate_event_codes(apps, schema_editor):
     counter, created = AutoIncrementCounter.objects.get_or_create(id=1)
 
     # Obtener todos los eventos que no tienen un código
-    events_without_code = Event.objects.filter(code="")
+    events_without_code = Event.objects.filter(code="").order_by("id")
 
     # Preparar una lista de eventos a actualizar
     events_to_update = []
 
-    for event in events_without_code:
-        counter.counter += 1
-        event.code = str(counter.counter).zfill(6)  # Asegurarse de que tenga 6 dígitos
+    # Base 10 para el formato de código, ajusta el valor según el número máximo de dígitos que necesitas
+    base = 10
+
+    for i, event in enumerate(events_without_code):
+        # Calcular el valor del código basado en la posición
+        # Generar el código como una cadena con ceros a la izquierda
+        code_value = str(base**i).zfill(
+            6
+        )  # 6 es el número máximo de dígitos que deseas
+        event.code = code_value
         events_to_update.append(event)
 
     # Actualizar todos los eventos en una sola operación
