@@ -36,6 +36,13 @@ class Day(models.Model):
         return False
 
 
+class AutoIncrementCounter(models.Model):
+    counter = models.IntegerField(default=0)
+
+    def __str__(self):
+        return str(self.counter)
+
+
 class Event(models.Model):
     start = models.DateField(null=None)
     end = models.DateField()
@@ -45,6 +52,7 @@ class Event(models.Model):
     machine = models.ForeignKey(Machine, on_delete=models.DO_NOTHING, default=None)
     status = models.ForeignKey(Status, on_delete=models.DO_NOTHING, default=None)
     # day = models.ForeignKey(Day, on_delete=models.CASCADE, related_name='events_days', default=Day.objects.get_or_create(date=date(2000, 1, 1))[0].id)
+    code = models.CharField(max_length=10, unique=True, blank=True)
     created_by = models.ForeignKey(
         User,
         on_delete=models.SET_NULL,
@@ -72,6 +80,17 @@ class Event(models.Model):
     deleted = models.BooleanField(default=False)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
+
+    def save(self, *args, **kwargs):
+        if not self.code:
+            self.code = self.generate_code()
+        super(Event, self).save(*args, **kwargs)
+
+    def generate_code(self):
+        counter, created = AutoIncrementCounter.objects.get_or_create(id=1)
+        counter.counter += 1
+        counter.save()
+        return str(counter.counter).zfill(6)
 
     def delete(self, *args, **kwargs):
         self.deleted = True

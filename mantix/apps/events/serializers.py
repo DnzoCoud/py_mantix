@@ -55,7 +55,7 @@ class EventSerializer(serializers.ModelSerializer):
         source="day", read_only=True
     )  # Campo detallado para el día relacionado
 
-    history_status = HistoryStatusSerializer()
+    history_status = HistoryStatusSerializer(required=False)
 
     class Meta:
         model = Event
@@ -74,6 +74,7 @@ class EventSerializer(serializers.ModelSerializer):
             "day",
             "day_detail",
             "history_status",
+            "code",
         ]
 
     def create(self, validated_data):

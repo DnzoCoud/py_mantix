@@ -140,22 +140,27 @@ def update(request):
         if status_id is not None:
             status_object = get_object_or_404(Status, pk=status_id)
             history = HistoryStatus.objects.filter(event=event.id)
-            if history.exists():
-                history_instance = history.first()
-                # Actualizar los campos del historial
-                if status_id != event.status.id:
-                    history_instance.previous_state = event.status
-                history_instance.actual_state = status_object
-                history_instance.save()
-            else:
-                history_instance = HistoryStatus(
-                    event=event,
-                    previous_state=(
-                        event.status if status_id != event.status.id else None
-                    ),
-                    actual_state=status_object,
-                )
-                history_instance.save()
+            if status_object.id == 4:
+                if history.exists():
+                    history_instance = history.first()
+                    # Actualizar los campos del historial
+                    if status_id != event.status.id:
+                        history_instance.previous_state = event.status
+                    history_instance.actual_state = status_object
+                    history_instance.save()
+                else:
+                    history_instance = HistoryStatus(
+                        event=event,
+                        previous_state=(
+                            event.status if status_id != event.status.id else None
+                        ),
+                        actual_state=status_object,
+                    )
+                    history_instance.save()
+            if status_object.id == 3:
+                machine = Machine.objects.get(pk=event.machine.id)
+                machine.last_maintenance = datetime.now().date()
+                machine.save()
             event.status = status_object
             event.save()
 
