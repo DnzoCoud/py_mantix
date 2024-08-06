@@ -16,15 +16,15 @@ def populate_event_codes(apps, schema_editor):
     # Preparar una lista de eventos a actualizar
     events_to_update = []
 
-    # Base 10 para el formato de código, ajusta el valor según el número máximo de dígitos que necesitas
+    # Utilizar el valor del contador como punto de partida
+    start_index = counter.counter
+
+    # Base 10 para el formato de código
     base = 10
 
     for i, event in enumerate(events_without_code):
-        # Calcular el valor del código basado en la posición
-        # Generar el código como una cadena con ceros a la izquierda
-        code_value = str(base**i).zfill(
-            6
-        )  # 6 es el número máximo de dígitos que deseas
+        # Generar el código en base al valor del contador
+        code_value = str(start_index + i).zfill(6)  # Asegúrate de que tenga 6 dígitos
         event.code = code_value
         events_to_update.append(event)
 
@@ -32,7 +32,9 @@ def populate_event_codes(apps, schema_editor):
     if events_to_update:
         Event.objects.bulk_update(events_to_update, ["code"])
 
-    # Actualizar el contador con el valor actual
+    # Actualizar el contador con el nuevo valor
+    new_counter_value = start_index + len(events_without_code)
+    counter.counter = new_counter_value
     counter.save()
 
 
