@@ -2,14 +2,13 @@
 
 import django.db.models.deletion
 from django.db import migrations, models
+from apps.events.models import Event, AutoIncrementCounter
 
 
-def assign_codes(apps, schema_editor):
-    Event = apps.get_model("apps.events", "Event")
-    AutoIncrementCounter = apps.get_model("apps.events", "AutoIncrementCounter")
+def assign_codes():
 
     # Get or create the counter instance
-    counter, _ = AutoIncrementCounter.objects.get_or_create(id=1)
+    counter, created = AutoIncrementCounter.objects.get_or_create(id=1)
 
     for event in Event.objects.all():
         if not event.code:
