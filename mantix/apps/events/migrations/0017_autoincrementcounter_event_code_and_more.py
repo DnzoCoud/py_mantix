@@ -4,21 +4,24 @@ import django.db.models.deletion
 from django.db import migrations, models
 
 
-def assign_codes(apps, schema_editor):
-    # Obtener los modelos usando el parámetro apps
+def populate_event_codes(apps, schema_editor):
     Event = apps.get_model("events", "Event")
     AutoIncrementCounter = apps.get_model("events", "AutoIncrementCounter")
 
-    # Obtener o crear la instancia del contador
+    # Crear o obtener el objeto AutoIncrementCounter
     counter, created = AutoIncrementCounter.objects.get_or_create(id=1)
 
-    for event in Event.objects.all():
-        if not event.code:
-            # Incrementar el contador y asignar un nuevo código
-            counter.counter += 1
-            counter.save()
-            event.code = str(counter.counter).zfill(6)
-            event.save()
+    # Obtener todos los eventos que no tienen un código
+    events_without_code = Event.objects.filter(code="")
+
+    # Actualizar el campo 'code' de cada evento
+    for event in events_without_code:
+        counter.counter += 1
+        counter.save()
+        event.code = str(counter.counter).zfill(
+            10
+        )  # Asegurarse de que tenga 10 dígitos
+        event.save()
 
 
 class Migration(migrations.Migration):
@@ -46,13 +49,7 @@ class Migration(migrations.Migration):
         migrations.AddField(
             model_name="event",
             name="code",
-            field=models.CharField(blank=True, max_length=10),
-        ),
-        migrations.RunPython(assign_codes, reverse_code=migrations.RunPython.noop),
-        migrations.AlterField(
-            model_name="event",
-            name="code",
-            field=models.CharField(max_length=10, unique=True),
+            field=models.CharField(blank=True, max_length=10, unique=True),
         ),
         migrations.AlterField(
             model_name="historystatus",
@@ -63,4 +60,5 @@ class Migration(migrations.Migration):
                 to="events.event",
             ),
         ),
+        migrations.RunPython(populate_event_codes),
     ]
