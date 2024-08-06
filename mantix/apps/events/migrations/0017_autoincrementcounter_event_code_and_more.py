@@ -14,14 +14,20 @@ def populate_event_codes(apps, schema_editor):
     # Obtener todos los eventos que no tienen un código
     events_without_code = Event.objects.filter(code="")
 
-    # Actualizar el campo 'code' de cada evento
+    # Preparar una lista de eventos a actualizar
+    events_to_update = []
+
     for event in events_without_code:
         counter.counter += 1
-        counter.save()
-        event.code = str(counter.counter).zfill(
-            10
-        )  # Asegurarse de que tenga 10 dígitos
-        event.save()
+        event.code = str(counter.counter).zfill(6)  # Asegurarse de que tenga 6 dígitos
+        events_to_update.append(event)
+
+    # Actualizar todos los eventos en una sola operación
+    if events_to_update:
+        Event.objects.bulk_update(events_to_update, ["code"])
+
+    # Actualizar el contador con el valor actual
+    counter.save()
 
 
 class Migration(migrations.Migration):
