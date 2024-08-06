@@ -52,7 +52,7 @@ class Event(models.Model):
     machine = models.ForeignKey(Machine, on_delete=models.DO_NOTHING, default=None)
     status = models.ForeignKey(Status, on_delete=models.DO_NOTHING, default=None)
     # day = models.ForeignKey(Day, on_delete=models.CASCADE, related_name='events_days', default=Day.objects.get_or_create(date=date(2000, 1, 1))[0].id)
-    code = models.CharField(max_length=10, unique=True, blank=True)
+    code = models.CharField(max_length=10, blank=True)
     created_by = models.ForeignKey(
         User,
         on_delete=models.SET_NULL,
