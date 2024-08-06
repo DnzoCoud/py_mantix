@@ -43,9 +43,14 @@ class Migration(migrations.Migration):
         migrations.AddField(
             model_name="event",
             name="code",
-            field=models.CharField(blank=True, max_length=10, unique=True),
+            field=models.CharField(blank=True, max_length=10),
         ),
-        migrations.RunPython(assign_codes),
+        migrations.RunPython(assign_codes, reverse_code=migrations.RunPython.noop),
+        migrations.AlterField(
+            model_name="event",
+            name="code",
+            field=models.CharField(max_length=10, unique=True),
+        ),
         migrations.AlterField(
             model_name="historystatus",
             name="event",
