@@ -45,7 +45,6 @@ def login(request):
             return Response(
                 {"error": "Invalid Password"}, status=status.HTTP_400_BAD_REQUEST
             )
-
     token, created = Token.objects.get_or_create(user=user)
     serializer = UserSerializer(instance=user)
     return Response(

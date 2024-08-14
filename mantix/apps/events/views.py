@@ -25,18 +25,36 @@ from apps.sign.models import User
 @permission_classes([IsAuthenticated])
 def findAll(request) -> Response:
     try:
-        events = (
-            Event.objects.filter(deleted=False)
-            .annotate(
-                shift_order=Case(
-                    When(shift="A", then=0),
-                    When(shift="B", then=1),
-                    When(shift="K", then=2),
-                    output_field=IntegerField(),
+
+        auth_user = request.user
+        if auth_user.role.id == 7:
+            events = (
+                Event.objects.filter(
+                    deleted=False, machine__location__area__director=auth_user.id
                 )
+                .annotate(
+                    shift_order=Case(
+                        When(shift="A", then=0),
+                        When(shift="B", then=1),
+                        When(shift="K", then=2),
+                        output_field=IntegerField(),
+                    )
+                )
+                .order_by("shift_order")
             )
-            .order_by("shift_order")
-        )
+        else:
+            events = (
+                Event.objects.filter(deleted=False)
+                .annotate(
+                    shift_order=Case(
+                        When(shift="A", then=0),
+                        When(shift="B", then=1),
+                        When(shift="K", then=2),
+                        output_field=IntegerField(),
+                    )
+                )
+                .order_by("shift_order")
+            )
         serializer = EventSerializer(instance=events, many=True)
         return Response(serializer.data, status=status.HTTP_200_OK)
     except Exception as ex:
@@ -159,7 +177,7 @@ def update(request):
                     history_instance.save()
             if status_object.id == 3:
                 machine = Machine.objects.get(pk=event.machine.id)
-                machine.last_maintenance = datetime.now().date()
+                machine.last_maintenance = datetime.now().date().strftime("%Y-%m-%d")
                 machine.save()
             event.status = status_object
             event.save()
@@ -280,6 +298,8 @@ def findEventsByDate(request: Request):
 @permission_classes([IsAuthenticated])
 def findEventsByDay(request: Request):
     try:
+        auth_user = request.user
+
         fecha_especifica_str = request.query_params.get("start")
         if not fecha_especifica_str.strip():
             return Response(
@@ -291,18 +311,36 @@ def findEventsByDay(request: Request):
         fecha_inicio = datetime.combine(fecha_especifica, datetime.min.time())
         fecha_fin = fecha_inicio + timedelta(days=1)
 
-        events = (
-            Event.objects.filter(start__gte=fecha_inicio, start__lt=fecha_fin)
-            .annotate(
-                shift_order=Case(
-                    When(shift="A", then=0),
-                    When(shift="B", then=1),
-                    When(shift="K", then=2),
-                    output_field=IntegerField(),
+        if auth_user.role.id == 7:
+            events = (
+                Event.objects.filter(
+                    start__gte=fecha_inicio,
+                    start__lt=fecha_fin,
+                    machine__location__area__director=auth_user.id,
                 )
+                .annotate(
+                    shift_order=Case(
+                        When(shift="A", then=0),
+                        When(shift="B", then=1),
+                        When(shift="K", then=2),
+                        output_field=IntegerField(),
+                    )
+                )
+                .order_by("shift_order")
             )
-            .order_by("shift_order")
-        )
+        else:
+            events = (
+                Event.objects.filter(start__gte=fecha_inicio, start__lt=fecha_fin)
+                .annotate(
+                    shift_order=Case(
+                        When(shift="A", then=0),
+                        When(shift="B", then=1),
+                        When(shift="K", then=2),
+                        output_field=IntegerField(),
+                    )
+                )
+                .order_by("shift_order")
+            )
         serializer = EventSerializer(events, many=True)
         return Response(serializer.data, status=status.HTTP_200_OK)
     except Exception as ex:
