@@ -14,19 +14,20 @@ Including another URLconf
     1. Import the include() function: from django.urls import include, path
     2. Add a URL to urlpatterns:  path('blog/', include('blog.urls'))
 """
+
 from django.contrib import admin
 from django.urls import path, re_path, include
-API_V="v1"
-API_PREFIX=f"api/{API_V}"
+
+API_V = "v1"
+API_PREFIX = f"api/{API_V}"
+
 urlpatterns = [
-    path('admin/', admin.site.urls),
-    path(f'{API_PREFIX}/sign/', include('apps.sign.urls')),
-    path(f'{API_PREFIX}/location/', include('apps.locations.urls')),
-    path(f'{API_PREFIX}/area/', include('apps.areas.urls')),
-    path(f'{API_PREFIX}/machine/', include('apps.machines.urls')),
-    path(f'{API_PREFIX}/event/', include('apps.events.urls')),
-    path(f'{API_PREFIX}/workOrder/', include('apps.work_order.urls')),
-    path(f'{API_PREFIX}/role/', include('apps.roles.urls')),
-
-
+    path("admin/", admin.site.urls),
+    path(f"{API_PREFIX}/sign/", include("apps.sign.urls")),
+    path(f"{API_PREFIX}/location/", include("apps.locations.urls")),
+    path(f"{API_PREFIX}/area/", include("apps.areas.urls")),
+    path(f"{API_PREFIX}/machine/", include("apps.machines.urls")),
+    path(f"{API_PREFIX}/event/", include("apps.events.urls")),
+    path(f"{API_PREFIX}/workOrder/", include("apps.work_order.urls")),
+    path(f"{API_PREFIX}/role/", include("apps.roles.urls")),
 ]
