@@ -16,8 +16,6 @@ import io
 import pandas as pd
 from apps.machines.models import Machine
 from apps.sign.models import User
-from channels.layers import get_channel_layer
-from asgiref.sync import async_to_sync
 
 # Create your views here.
 
@@ -104,17 +102,7 @@ def save(request: Request) -> Response:
         request.data["day"] = day.id
         serializer = EventSerializer(data=request.data)
         if serializer.is_valid():
-            event = serializer.save()
-            # WebSocket
-            channel_layer = get_channel_layer()
-            async_to_sync(channel_layer.group_send)(
-                "events",  # Nombre del grupo al que enviar el mensaje
-                {
-                    "type": "event_created",  # Tipo de mensaje
-                    "event_id": event.id,
-                    "event_data": serializer.data,  # Datos del evento
-                },
-            )
+            serializer.save()
             return Response(serializer.data, status=status.HTTP_201_CREATED)
         return Response(
             {"error": serializer.errors}, status=status.HTTP_400_BAD_REQUEST
@@ -228,16 +216,6 @@ def update(request):
         event.updated_by = user
         event.save()
         serializer = EventSerializer(event)
-
-        channel_layer = get_channel_layer()
-        async_to_sync(channel_layer.group_send)(
-            "events",  # Nombre del grupo al que enviar el mensaje
-            {
-                "type": "event_updated",  # Tipo de mensaje
-                "event_id": event.id,
-                "event_data": serializer.data,  # Datos del evento
-            },
-        )
         return Response(serializer.data, status=status.HTTP_201_CREATED)
     except Exception as ex:
         return Response(

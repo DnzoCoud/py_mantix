@@ -1,21 +1,14 @@
-FROM python:3.12
-
+FROM python:3.12.3-slim-bookworm
 ENV PYTHONDONTWRITEBYTECODE 1
 ENV PYTHONUNBUFFERED 1
-
 WORKDIR /app
+RUN apt-get update && apt-get install -y \
+    libmariadb-dev \
+    gcc \
+    && rm -rf /var/lib/apt/lists/* \
+    && pip install --upgrade pip
 
-COPY requirements.txt .
-
-RUN apt-get update && \
-    apt-get install -y wget && \
-    wget https://raw.githubusercontent.com/vishnubob/wait-for-it/master/wait-for-it.sh -O /usr/local/bin/wait-for-it.sh && \
-    chmod +x /usr/local/bin/wait-for-it.sh
-
-# Instala las dependencias de Python
-RUN pip install --no-cache-dir -r requirements.txt
-COPY . .
-# Expone el puerto en el que Django correrá
-EXPOSE 8000
-# Comando para ejecutar el servidor de desarrollo de Django
-CMD ["gunicorn", "--bind", "0.0.0.0:8000", "mantix.wsgi:application"]
+COPY ./requirements.txt ./
+RUN pip install -r requirements.txt
+RUN cd /app
+COPY ./ ./

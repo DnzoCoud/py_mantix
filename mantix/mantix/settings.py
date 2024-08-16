@@ -35,7 +35,6 @@ ALLOWED_HOSTS = ["*"]
 # Application definition
 
 INSTALLED_APPS = [
-    "daphne",
     "django.contrib.admin",
     "django.contrib.auth",
     "django.contrib.contenttypes",
@@ -46,7 +45,6 @@ INSTALLED_APPS = [
     "rest_framework.authtoken",
     "django_extensions",
     "corsheaders",
-    "channels",
     "apps.sign",
     "apps.machines",
     "apps.events",
@@ -89,7 +87,6 @@ TEMPLATES = [
 ]
 
 WSGI_APPLICATION = "mantix.wsgi.application"
-ASGI_APPLICATION = "mantix.asgi.application"
 
 
 # Database
@@ -155,9 +152,3 @@ STATIC_ROOT = os.path.join(BASE_DIR, "staticfiles")
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
 AUTH_USER_MODEL = "sign.User"
-
-CHANNEL_LAYERS = {
-    "default": {
-        "BACKEND": "channels.layers.InMemoryChannelLayer",
-    },
-}
