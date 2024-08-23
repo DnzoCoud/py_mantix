@@ -145,9 +145,15 @@ def findUserDirectors(request):
 @api_view(["GET"])
 @authentication_classes([TokenAuthentication])
 @permission_classes([IsAuthenticated])
-def findAll(request):
+def findAll(request: Request):
     try:
-        users = User.objects.filter(is_active=True).exclude(role=Roles.ADMIN.value)
+        if request.user.role.id == Roles.MANAGER.value:
+            users = User.objects.filter(
+                is_active=True, role=Roles.TECHNICAL.value
+            ).exclude(role=Roles.ADMIN.value)
+        else:
+            users = User.objects.filter(is_active=True).exclude(role=Roles.ADMIN.value)
+
         serializers = UserDetailSerializer(users, many=True)
         return Response(serializers.data, status=status.HTTP_200_OK)
     except Exception as ex:
