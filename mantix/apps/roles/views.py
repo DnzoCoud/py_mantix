@@ -9,6 +9,7 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.authentication import TokenAuthentication
 from .serializers import RoleSerializer, MenuSerializer
 from django.db import transaction
+from apps.sign.views import Roles as RoleEnum
 
 # Create your views here.
 
@@ -19,11 +20,18 @@ from django.db import transaction
 def findAllRoles(request: Request):
     try:
         # Verifica si hay roles en la base de datos que no sean ADMIN
-        roles = Role.objects.all().exclude(pk=1)
-        if not roles.exists():
-            return Response(
-                {"error": "No roles found"}, status=status.HTTP_404_NOT_FOUND
-            )
+        if request.user.role.id == RoleEnum.MANAGER.value:
+            roles = Role.objects.get(id=RoleEnum.TECHNICAL.value)
+            if not roles.exists():
+                return Response(
+                    {"error": "No roles found"}, status=status.HTTP_404_NOT_FOUND
+                )
+        else:
+            roles = Role.objects.all().exclude(pk=1)
+            if not roles.exists():
+                return Response(
+                    {"error": "No roles found"}, status=status.HTTP_404_NOT_FOUND
+                )
 
         # Serializa los roles encontrados
         serializer = RoleSerializer(roles, many=True)
