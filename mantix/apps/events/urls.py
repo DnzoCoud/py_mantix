@@ -29,4 +29,9 @@ urlpatterns = [
         views.reprogram_request,
         name="reprogram_request",
     ),
+    path(
+        "get_history_for_machine",
+        views.get_history_for_machine,
+        name="get_history_for_machine",
+    ),
 ]

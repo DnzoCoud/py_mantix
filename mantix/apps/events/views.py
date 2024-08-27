@@ -418,12 +418,11 @@ def restore(id: int):
 def get_history_for_machine(request: Request):
     try:
         machine_id = request.query_params.get("machine")
-        machine = Machine.objects.get(pk=event.machine.id)
-
-        event = get_object_or_404(Event, id=id)
-        event.restore()
+        machine = Machine.objects.get(pk=machine_id)
+        history = MaintenanceHistory.objects.filter(machine=machine.id)
+        serializer = MaintenanceHistorySerializer(history, many=True)
         return Response(
-            {"message": "El mantenimiento ha sido reactivado correctamente"},
+            serializer.data,
             status=status.HTTP_200_OK,
         )
     except Exception as ex:
