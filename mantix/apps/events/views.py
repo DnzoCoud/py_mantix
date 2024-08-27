@@ -419,7 +419,9 @@ def get_history_for_machine(request: Request):
     try:
         machine_id = request.query_params.get("machine")
         machine = Machine.objects.get(pk=machine_id)
-        history = MaintenanceHistory.objects.filter(machine=machine.id)
+        history = MaintenanceHistory.objects.filter(machine=machine.id).order_by(
+            "-maintenance_date"
+        )
         serializer = MaintenanceHistorySerializer(history, many=True)
         return Response(
             serializer.data,
