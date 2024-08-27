@@ -8,6 +8,7 @@ from datetime import date
 class Status(models.Model):
     name = models.CharField(max_length=100)
     deleted = models.BooleanField(default=False)
+    icon = models.CharField(max_length=50, null=True, default=None)
 
     def delete(self, *args, **kwargs):
         self.deleted = True
@@ -53,6 +54,13 @@ class Event(models.Model):
     status = models.ForeignKey(Status, on_delete=models.DO_NOTHING, default=None)
     # day = models.ForeignKey(Day, on_delete=models.CASCADE, related_name='events_days', default=Day.objects.get_or_create(date=date(2000, 1, 1))[0].id)
     code = models.CharField(max_length=10, blank=True)
+    request_user = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        related_name="request_user",
+        null=True,
+        blank=True,
+    )
     created_by = models.ForeignKey(
         User,
         on_delete=models.SET_NULL,
@@ -138,5 +146,30 @@ class HistoryStatus(models.Model):
         null=True,
         blank=False,
     )
+    previous_reprogram = models.BooleanField(default=False)
+    prev_start = models.DateField(null=True, default=None)
+    prev_end = models.DateField(null=True, default=None)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
+
+
+class MaintenanceHistory(models.Model):
+    machine = models.ForeignKey(
+        Machine, on_delete=models.CASCADE, related_name="maintenance_histories"
+    )
+    status = models.ForeignKey(Status, on_delete=models.SET_NULL, null=True, blank=True)
+    maintenance_date = models.DateTimeField()
+    performed_by = models.ForeignKey(
+        User, on_delete=models.SET_NULL, null=True, blank=True
+    )
+    event_code = models.CharField(max_length=10, blank=False, null=True, default=None)
+
+    description = models.TextField(blank=True, null=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"{self.machine.name} - {self.maintenance_date} - {self.status.name if self.status else 'Maintenance'}"
+
+    class Meta:
+        verbose_name = "Maintenance History"
+        verbose_name_plural = "Maintenance Histories"

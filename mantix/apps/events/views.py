@@ -8,7 +8,7 @@ from django.shortcuts import get_object_or_404
 from rest_framework.decorators import authentication_classes, permission_classes
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.authentication import TokenAuthentication
-from .models import Event, Status, Activity, Day, HistoryStatus
+from .models import Event, Status, Activity, Day, HistoryStatus, MaintenanceHistory
 from .serializers import *
 from datetime import datetime, timedelta
 import base64
@@ -18,6 +18,7 @@ from apps.machines.models import Machine
 from apps.sign.models import User
 from channels.layers import get_channel_layer
 from asgiref.sync import async_to_sync
+from apps.constants import *
 
 # Create your views here.
 
@@ -115,6 +116,13 @@ def save(request: Request) -> Response:
                     "event_data": serializer.data,  # Datos del evento
                 },
             )
+            generate_history_for_maintenance(
+                event.machine,
+                event.status,
+                "Se programa el mantenimiento",
+                request.user,
+                event.code,
+            )
             return Response(serializer.data, status=status.HTTP_201_CREATED)
         return Response(
             {"error": serializer.errors}, status=status.HTTP_400_BAD_REQUEST
@@ -135,6 +143,72 @@ def convert_iso_date_to_yyyymmdd(iso_date_str):
     except ValueError:
         # Si no se puede convertir según el formato ISO 8601, devuelve la cadena original
         return iso_date_str
+
+
+@api_view(["POST"])
+@authentication_classes([TokenAuthentication])
+@permission_classes([IsAuthenticated])
+def reprogram_request(request: Request):
+    try:  # Se deduce que ya existe un registro en el historial de estado del evento
+        event_id = request.data.get("event")
+        action = request.data.get("action", "false")
+        # action = str_to_bool(action)
+        event = get_object_or_404(Event, id=event_id)
+        history = HistoryStatus.objects.filter(event=event.id)
+        history_instance = history.first()
+        if action:  # Aceptaron la reprogramacion
+            status_reprogram = get_object_or_404(
+                Status, id=EventStatusEnum.REPROGRAMADO.value
+            )
+            history_instance.actual_state = status_reprogram
+            event.status = status_reprogram
+
+            generate_history_for_maintenance(
+                event.machine,
+                status_reprogram,
+                "Se acepta la peticiòn para reprogramar el mantenimiento",
+                request.user,
+                event.code,
+            )
+        else:  # rechazaron la reprogramacio
+            if history_instance.previous_reprogram:
+                status_reprogram = get_object_or_404(
+                    Status, id=EventStatusEnum.REPROGRAMADO.value
+                )
+                history_instance.actual_state = status_reprogram
+                event.status = status_reprogram
+            else:
+                event.status = history_instance.previous_state
+
+            event.start = history_instance.prev_start
+            event.end = history_instance.prev_end
+            history_instance.prev_start = None
+            history_instance.prev_end = None
+            generate_history_for_maintenance(
+                event.machine,
+                history_instance.previous_state,
+                "Se rechaza la peticiòn para reprogramar el mantenimiento",
+                request.user,
+                event.code,
+            )
+        event.save()
+        history_instance.save()
+        serializer = EventSerializer(event)
+
+        channel_layer = get_channel_layer()
+        async_to_sync(channel_layer.group_send)(
+            "events",  # Nombre del grupo al que enviar el mensaje
+            {
+                "type": "event_updated",  # Tipo de mensaje
+                "event_id": event.id,
+                "event_data": serializer.data,  # Datos del evento
+            },
+        )
+        return Response(serializer.data, status=status.HTTP_201_CREATED)
+    except Exception as ex:
+        return Response(
+            {"error": str(ex)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR
+        )
 
 
 @api_view(["PATCH"])
@@ -158,6 +232,9 @@ def update(request):
         activities = request.data.get("activity_data")
 
         event = get_object_or_404(Event, id=id)
+        prev_start = event.start
+        prev_end = event.end
+        machine = Machine.objects.get(pk=event.machine.id)
 
         if start is not None:
             event.start = convert_iso_date_to_yyyymmdd(start)
@@ -170,7 +247,7 @@ def update(request):
         if status_id is not None:
             status_object = get_object_or_404(Status, pk=status_id)
             history = HistoryStatus.objects.filter(event=event.id)
-            if status_object.id == 4:
+            if status_object.id == EventStatusEnum.REPROGRAMADO.value:
                 if history.exists():
                     history_instance = history.first()
                     # Actualizar los campos del historial
@@ -187,10 +264,64 @@ def update(request):
                         actual_state=status_object,
                     )
                     history_instance.save()
-            if status_object.id == 3:
-                machine = Machine.objects.get(pk=event.machine.id)
-                machine.last_maintenance = datetime.now().date().strftime("%Y-%m-%d")
+                generate_history_for_maintenance(
+                    machine,
+                    status_object,
+                    "Se reprograma el mantenimiento",
+                    user,
+                    event.code,
+                )
+            if status_object.id == EventStatusEnum.COMPLETADO.value:
+                machine.last_maintenance = datetime.now().strftime("%Y-%m-%d")
                 machine.save()
+                generate_history_for_maintenance(
+                    machine,
+                    status_object,
+                    "Se completa el mantenimiento",
+                    user,
+                    event.code,
+                )
+            if status_object.id == EventStatusEnum.EN_EJECUCION.value:
+                generate_history_for_maintenance(
+                    machine,
+                    status_object,
+                    "Se pone en ejecución el mantenimiento",
+                    user,
+                    event.code,
+                )
+            if status_object.id == EventStatusEnum.PETICION_REPROGRAMADO.value:
+                history = HistoryStatus.objects.filter(event=event.id)
+                if history.exists():
+                    history_instance = history.first()
+                    if status_id != event.status.id:
+                        if event.status.id == EventStatusEnum.REPROGRAMADO.value:
+                            history_instance.previous_reprogram = True
+                        else:
+                            history_instance.previous_state = event.status
+                    history_instance.actual_state = status_object
+                    history_instance.prev_start = prev_start
+                    history_instance.prev_end = prev_end
+                    history_instance.save()
+                else:
+                    history_instance = HistoryStatus(
+                        event=event,
+                        previous_state=(
+                            event.status if status_id != event.status.id else None
+                        ),
+                        actual_state=status_object,
+                        prev_start=prev_start,
+                        prev_end=prev_end,
+                    )
+                    history_instance.save()
+                event.request_user = user
+
+                generate_history_for_maintenance(
+                    machine,
+                    status_object,
+                    "Se hace petición para reprogramar el mantenimiento",
+                    user,
+                    event.code,
+                )
             event.status = status_object
             event.save()
 
@@ -269,6 +400,26 @@ def delete(request: Request, id: int):
 @permission_classes([IsAuthenticated])
 def restore(id: int):
     try:
+        event = get_object_or_404(Event, id=id)
+        event.restore()
+        return Response(
+            {"message": "El mantenimiento ha sido reactivado correctamente"},
+            status=status.HTTP_200_OK,
+        )
+    except Exception as ex:
+        return Response(
+            {"error": str(ex)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR
+        )
+
+
+@api_view(["GET"])
+@authentication_classes([TokenAuthentication])
+@permission_classes([IsAuthenticated])
+def get_history_for_machine(request: Request):
+    try:
+        machine_id = request.query_params.get("machine")
+        machine = Machine.objects.get(pk=event.machine.id)
+
         event = get_object_or_404(Event, id=id)
         event.restore()
         return Response(
@@ -492,6 +643,14 @@ def importEventsByExcel(request: Request):
                             status=statusObject,
                             day=day,
                         )
+
+                        generate_history_for_maintenance(
+                            machine,
+                            statusObject,
+                            "Se programa el mantenimiento",
+                            request.user,
+                            event.code,
+                        )
                         events.append(event)
 
                     serializer = EventSerializer(events, many=True)
@@ -533,3 +692,95 @@ def close_day(request, day_id):
         return Response(
             {"error": str(ex)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR
         )
+
+
+@api_view(["GET"])
+@authentication_classes([TokenAuthentication])
+@permission_classes([IsAuthenticated])
+def get_technician_performance(request: Request):
+    now = datetime.now().strftime("%Y-%m-%d")
+    try:
+        auh_user = request.user
+        actividades = Activity.objects.filter(technical=auh_user.id, event__start=now)
+        total_actividades = actividades.count()
+
+        actividades_completadas = actividades.filter(completed=True).count()
+        porcentaje_completado = (
+            ((actividades_completadas / total_actividades) * 100)
+            if actividades_completadas > 0
+            else 0
+        )
+
+        return Response(
+            {
+                "total_actividades": total_actividades,
+                "actividades_completadas": actividades_completadas,
+                "porcentaje_completado": porcentaje_completado,
+            }
+        )
+    except Exception as ex:
+        return Response(
+            {"error": str(ex)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR
+        )
+
+
+@api_view(["GET"])
+@authentication_classes([TokenAuthentication])
+@permission_classes([IsAuthenticated])
+def get_activities_by_technical_and_event(request: Request):
+    techinal_id = request.query_params.get("technical")
+    event_id = request.query_params.get("event")
+
+    try:
+        technical = User.objects.get(pk=techinal_id)
+    except User.DoesNotExist:
+        return Response(
+            {"error": "El tecnico no existe."},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+    try:
+        event = Event.objects.get(pk=event_id)
+    except Event.DoesNotExist:
+        return Response(
+            {"error": "El mantenimiento no existe."},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    activities = Activity.objects.filter(technical=technical.id, event=event.id)
+    serializer = ActivitySerializer(activities, many=True)
+    return Response(serializer.data)
+
+
+@api_view(["GET"])
+@authentication_classes([TokenAuthentication])
+@permission_classes([IsAuthenticated])
+def get_events_by_technical(request: Request):
+    techinal_id = request.query_params.get("technical")
+
+    try:
+        technical = User.objects.get(pk=techinal_id)
+    except User.DoesNotExist:
+        return Response(
+            {"error": "El tecnico no existe."},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    events = Event.objects.filter(activities__technical=technical.id).distinct()
+    serializer = EventSerializer(events, many=True)
+    return Response(serializer.data)
+
+
+def generate_history_for_maintenance(
+    machine: Machine, status: Status, description, performed_by: User, event_code
+):
+    now = datetime.now()
+    history = MaintenanceHistory(
+        machine=machine,
+        status=status,
+        maintenance_date=now,
+        performed_by=performed_by,
+        description=description,
+        event_code=event_code,
+    )
+
+    history.save()

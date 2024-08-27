@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import Event, Status, Activity, Day, HistoryStatus
+from .models import Event, Status, Activity, Day, HistoryStatus, MaintenanceHistory
 from apps.machines.models import Machine
 from apps.machines.serializers import MachineSerializer
 from apps.sign.models import User
@@ -9,7 +9,7 @@ from apps.sign.serializers import UserDetailSerializer
 class StatusSerializer(serializers.ModelSerializer):
     class Meta:
         model = Status
-        fields = ["id", "name"]
+        fields = ["id", "name", "icon"]
 
 
 class ActivitySerializer(serializers.ModelSerializer):
@@ -56,6 +56,7 @@ class EventSerializer(serializers.ModelSerializer):
     )  # Campo detallado para el día relacionado
 
     history_status = HistoryStatusSerializer(required=False)
+    request_user = UserDetailSerializer(required=False)
 
     class Meta:
         model = Event
@@ -75,6 +76,7 @@ class EventSerializer(serializers.ModelSerializer):
             "day_detail",
             "history_status",
             "code",
+            "request_user",
         ]
 
     def create(self, validated_data):
@@ -88,3 +90,20 @@ class EventSerializer(serializers.ModelSerializer):
     #     # Obtiene todos los HistoryStatus relacionados con el evento actual
     #     history_statuses = HistoryStatus.objects.filter(event=obj)
     #     return HistoryStatusSerializer(history_statuses, many=True).data
+
+
+class MaintenanceHistorySerializer(serializers.ModelSerializer):
+    machine = MachineSerializer()
+    performed_by = UserDetailSerializer()
+    status = StatusSerializer()
+
+    class Meta:
+        model = MaintenanceHistory
+        fields = [
+            "id",
+            "maintenance_date",
+            "description",
+            "machine",
+            "performed_by",
+            "status",
+        ]
