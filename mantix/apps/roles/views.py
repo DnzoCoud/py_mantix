@@ -21,7 +21,7 @@ def findAllRoles(request: Request):
     try:
         # Verifica si hay roles en la base de datos que no sean ADMIN
         if request.user.role.id == RoleEnum.MANAGER.value:
-            roles = Role.objects.get(id=RoleEnum.TECHNICAL.value)
+            roles = Role.objects.filter(id=RoleEnum.TECHNICAL.value)
             if not roles.exists():
                 return Response(
                     {"error": "No roles found"}, status=status.HTTP_404_NOT_FOUND
