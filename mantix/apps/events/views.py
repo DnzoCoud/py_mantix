@@ -19,6 +19,7 @@ from apps.sign.models import User
 from channels.layers import get_channel_layer
 from asgiref.sync import async_to_sync
 from apps.constants import *
+from django.db import transaction
 
 # Create your views here.
 
@@ -231,145 +232,146 @@ def update(request):
         end_time = request.data.get("end_time")
         activities = request.data.get("activity_data")
 
-        event = get_object_or_404(Event, id=id)
-        prev_start = event.start
-        prev_end = event.end
-        machine = Machine.objects.get(pk=event.machine.id)
+        with transaction.atomic():
+            event = get_object_or_404(Event, id=id)
+            prev_start = event.start
+            prev_end = event.end
+            machine = Machine.objects.get(pk=event.machine.id)
 
-        if start is not None:
-            event.start = convert_iso_date_to_yyyymmdd(start)
-        if end is not None:
-            event.end = convert_iso_date_to_yyyymmdd(end)
-        if init_time is not None:
-            event.init_time = init_time
-        if end_time is not None:
-            event.end_time = end_time
-        if status_id is not None:
-            status_object = get_object_or_404(Status, pk=status_id)
-            history = HistoryStatus.objects.filter(event=event.id)
-            if status_object.id == EventStatusEnum.REPROGRAMADO.value:
-                if history.exists():
-                    history_instance = history.first()
-                    # Actualizar los campos del historial
-                    if status_id != event.status.id:
-                        history_instance.previous_state = event.status
-                    history_instance.actual_state = status_object
-                    history_instance.save()
-                else:
-                    history_instance = HistoryStatus(
-                        event=event,
-                        previous_state=(
-                            event.status if status_id != event.status.id else None
-                        ),
-                        actual_state=status_object,
-                    )
-                    history_instance.save()
-                generate_history_for_maintenance(
-                    machine,
-                    status_object,
-                    "Se reprograma el mantenimiento",
-                    user,
-                    event.code,
-                )
-            if status_object.id == EventStatusEnum.COMPLETADO.value:
-                machine.last_maintenance = datetime.now().strftime("%Y-%m-%d")
-                machine.save()
-                generate_history_for_maintenance(
-                    machine,
-                    status_object,
-                    "Se completa el mantenimiento",
-                    user,
-                    event.code,
-                )
-            if status_object.id == EventStatusEnum.EN_EJECUCION.value:
-                generate_history_for_maintenance(
-                    machine,
-                    status_object,
-                    "Se pone en ejecución el mantenimiento",
-                    user,
-                    event.code,
-                )
-            if status_object.id == EventStatusEnum.PETICION_REPROGRAMADO.value:
+            if start is not None:
+                event.start = convert_iso_date_to_yyyymmdd(start)
+            if end is not None:
+                event.end = convert_iso_date_to_yyyymmdd(end)
+            if init_time is not None:
+                event.init_time = init_time
+            if end_time is not None:
+                event.end_time = end_time
+            if status_id is not None:
+                status_object = get_object_or_404(Status, pk=status_id)
                 history = HistoryStatus.objects.filter(event=event.id)
-                if history.exists():
-                    history_instance = history.first()
-                    if status_id != event.status.id:
-                        if event.status.id == EventStatusEnum.REPROGRAMADO.value:
-                            history_instance.previous_reprogram = True
-                        else:
+                if status_object.id == EventStatusEnum.REPROGRAMADO.value:
+                    if history.exists():
+                        history_instance = history.first()
+                        # Actualizar los campos del historial
+                        if status_id != event.status.id:
                             history_instance.previous_state = event.status
-                    history_instance.actual_state = status_object
-                    history_instance.prev_start = prev_start
-                    history_instance.prev_end = prev_end
-                    history_instance.save()
-                else:
-                    history_instance = HistoryStatus(
-                        event=event,
-                        previous_state=(
-                            event.status if status_id != event.status.id else None
-                        ),
-                        actual_state=status_object,
-                        prev_start=prev_start,
-                        prev_end=prev_end,
-                    )
-                    history_instance.save()
-                event.request_user = user
-
-                generate_history_for_maintenance(
-                    machine,
-                    status_object,
-                    "Se hace petición para reprogramar el mantenimiento",
-                    user,
-                    event.code,
-                )
-            event.status = status_object
-            event.save()
-
-        if activities is not None:
-            for activity_data in activities:
-                tecnical = activity_data.get("technician")
-                print(tecnical["id"])
-                if tecnical["id"] is not None:
-                    userObject = get_object_or_404(User, pk=tecnical["id"])
-                activity_objects = activity_data.get("activities")
-                for activity in activity_objects:
-                    activity_id = activity.get("id")
-                    name = activity.get("name")
-                    completed = activity.get("completed")
-
-                    if activity_id:
-                        activityObj = get_object_or_404(
-                            Activity, id=activity_id, event=event
-                        )
-                        if activityObj.name != name:
-                            activityObj.name = name
-                            activityObj.save()
-                        if activityObj.completed != completed:
-                            activityObj.completed = completed
-                            activityObj.save()
-                        if activityObj.technical != userObject:
-                            activityObj.technical = userObject
-                            activityObj.save()
-
+                        history_instance.actual_state = status_object
+                        history_instance.save()
                     else:
-                        Activity.objects.create(
-                            event=event, name=name, technical=userObject
+                        history_instance = HistoryStatus(
+                            event=event,
+                            previous_state=(
+                                event.status if status_id != event.status.id else None
+                            ),
+                            actual_state=status_object,
                         )
+                        history_instance.save()
+                    generate_history_for_maintenance(
+                        machine,
+                        status_object,
+                        "Se reprograma el mantenimiento",
+                        user,
+                        event.code,
+                    )
+                if status_object.id == EventStatusEnum.COMPLETADO.value:
+                    machine.last_maintenance = datetime.now().strftime("%Y-%m-%d")
+                    machine.save()
+                    generate_history_for_maintenance(
+                        machine,
+                        status_object,
+                        "Se completa el mantenimiento",
+                        user,
+                        event.code,
+                    )
+                if status_object.id == EventStatusEnum.EN_EJECUCION.value:
+                    generate_history_for_maintenance(
+                        machine,
+                        status_object,
+                        "Se pone en ejecución el mantenimiento",
+                        user,
+                        event.code,
+                    )
+                if status_object.id == EventStatusEnum.PETICION_REPROGRAMADO.value:
+                    history = HistoryStatus.objects.filter(event=event.id)
+                    if history.exists():
+                        history_instance = history.first()
+                        if status_id != event.status.id:
+                            if event.status.id == EventStatusEnum.REPROGRAMADO.value:
+                                history_instance.previous_reprogram = True
+                            else:
+                                history_instance.previous_state = event.status
+                        history_instance.actual_state = status_object
+                        history_instance.prev_start = prev_start
+                        history_instance.prev_end = prev_end
+                        history_instance.save()
+                    else:
+                        history_instance = HistoryStatus(
+                            event=event,
+                            previous_state=(
+                                event.status if status_id != event.status.id else None
+                            ),
+                            actual_state=status_object,
+                            prev_start=prev_start,
+                            prev_end=prev_end,
+                        )
+                        history_instance.save()
+                    event.request_user = user
 
-        event.updated_by = user
-        event.save()
-        serializer = EventSerializer(event)
+                    generate_history_for_maintenance(
+                        machine,
+                        status_object,
+                        "Se hace petición para reprogramar el mantenimiento",
+                        user,
+                        event.code,
+                    )
+                event.status = status_object
+                event.save()
 
-        channel_layer = get_channel_layer()
-        async_to_sync(channel_layer.group_send)(
-            "events",  # Nombre del grupo al que enviar el mensaje
-            {
-                "type": "event_updated",  # Tipo de mensaje
-                "event_id": event.id,
-                "event_data": serializer.data,  # Datos del evento
-            },
-        )
-        return Response(serializer.data, status=status.HTTP_201_CREATED)
+            if activities is not None:
+                for activity_data in activities:
+                    tecnical = activity_data.get("technician")
+                    print(tecnical["id"])
+                    if tecnical["id"] is not None:
+                        userObject = get_object_or_404(User, pk=tecnical["id"])
+                    activity_objects = activity_data.get("activities")
+                    for activity in activity_objects:
+                        activity_id = activity.get("id")
+                        name = activity.get("name")
+                        completed = activity.get("completed")
+
+                        if activity_id:
+                            activityObj = get_object_or_404(
+                                Activity, id=activity_id, event=event
+                            )
+                            if activityObj.name != name:
+                                activityObj.name = name
+                                activityObj.save()
+                            if activityObj.completed != completed:
+                                activityObj.completed = completed
+                                activityObj.save()
+                            if activityObj.technical != userObject:
+                                activityObj.technical = userObject
+                                activityObj.save()
+
+                        else:
+                            Activity.objects.create(
+                                event=event, name=name, technical=userObject
+                            )
+
+            event.updated_by = user
+            event.save()
+            serializer = EventSerializer(event)
+
+            channel_layer = get_channel_layer()
+            async_to_sync(channel_layer.group_send)(
+                "events",  # Nombre del grupo al que enviar el mensaje
+                {
+                    "type": "event_updated",  # Tipo de mensaje
+                    "event_id": event.id,
+                    "event_data": serializer.data,  # Datos del evento
+                },
+            )
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
     except Exception as ex:
         return Response(
             {"error": str(ex)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR
