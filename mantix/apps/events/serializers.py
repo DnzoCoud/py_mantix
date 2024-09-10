@@ -4,6 +4,7 @@ from apps.machines.models import Machine
 from apps.machines.serializers import MachineSerializer
 from apps.sign.models import User
 from apps.sign.serializers import UserDetailSerializer
+from datetime import datetime
 
 
 class StatusSerializer(serializers.ModelSerializer):
@@ -39,6 +40,7 @@ class HistoryStatusSerializer(serializers.ModelSerializer):
 
 
 class EventSerializer(serializers.ModelSerializer):
+    end_time = serializers.TimeField(format="%H:%M:%S")
     status = serializers.PrimaryKeyRelatedField(
         queryset=Status.objects.all(), write_only=True
     )

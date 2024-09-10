@@ -212,18 +212,9 @@ def reprogram_request(request: Request):
         )
 
 
-def convert_time_format(time_str):
-    # Convertir la hora en formato de 12 horas a un objeto datetime
-    dt = datetime.strptime(time_str, "%I:%M:%S %p")
-
-    # Formato base HH:MM
-    formatted_time = dt.strftime("%H:%M")
-
-    # Agregar segundos si es distinto de 0
-    if dt.second > 0:
-        formatted_time += f":{dt.strftime('%S')}"
-
-    return formatted_time
+def convertir_a_time(hora_str):
+    parsed_time = datetime.strptime(hora_str, "%H:%M:%S").time()
+    return parsed_time
 
 
 @api_view(["PATCH"])
@@ -260,8 +251,7 @@ def update(request):
             if init_time is not None:
                 event.init_time = init_time
             if end_time is not None:
-                end_time = end_time.replace("a. m.", "AM").replace("p. m.", "PM")
-                event.end_time = convert_time_format(end_time)
+                event.end_time = convertir_a_time(end_time)
             if status_id is not None:
                 status_object = get_object_or_404(Status, pk=status_id)
                 history = HistoryStatus.objects.filter(event=event.id)
@@ -346,7 +336,6 @@ def update(request):
             if activities is not None:
                 for activity_data in activities:
                     tecnical = activity_data.get("technician")
-                    print(tecnical["id"])
                     if tecnical["id"] is not None:
                         userObject = get_object_or_404(User, pk=tecnical["id"])
                     activity_objects = activity_data.get("activities")
