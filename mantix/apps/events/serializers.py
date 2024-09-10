@@ -88,19 +88,25 @@ class EventSerializer(serializers.ModelSerializer):
             Activity.objects.create(event=event, **activity)
         return event
 
-
     def validate_end_time(self, value):
         # Limpiar el valor de la hora
-        value = value.replace("a. m.", "AM").replace("p. m.", "PM").strip()
+        value = (
+            value.lower()
+            .replace("a. m.", "AM")
+            .replace("p. m.", "PM")
+            .replace("a.m.", "AM")
+            .replace("p.m.", "PM")
+            .strip()
+        )
 
         try:
-            # Intentar parsear como formato de 24 horas (HH:MM:SS)
-            parsed_time = datetime.strptime(value, "%H:%M:%S").time()
+            # Intentar parsear como formato de 12 horas (HH:MM:SS AM/PM)
+            parsed_time = datetime.strptime(value, "%I:%M:%S %p").time()
             return parsed_time
         except ValueError:
             try:
-                # Intentar parsear como formato de 12 horas (HH:MM:SS AM/PM)
-                parsed_time = datetime.strptime(value, "%I:%M:%S %p").time()
+                # Intentar parsear como formato de 24 horas (HH:MM:SS)
+                parsed_time = datetime.strptime(value, "%H:%M:%S").time()
                 return parsed_time
             except ValueError:
                 raise serializers.ValidationError(
