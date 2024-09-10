@@ -5,6 +5,7 @@ from apps.machines.serializers import MachineSerializer
 from apps.sign.models import User
 from apps.sign.serializers import UserDetailSerializer
 from datetime import datetime
+import re
 
 
 class StatusSerializer(serializers.ModelSerializer):
@@ -89,15 +90,10 @@ class EventSerializer(serializers.ModelSerializer):
         return event
 
     def validate_end_time(self, value):
-        # Limpiar el valor de la hora
-        value = (
-            value.lower()
-            .replace("a. m.", "AM")
-            .replace("p. m.", "PM")
-            .replace("a.m.", "AM")
-            .replace("p.m.", "PM")
-            .strip()
-        )
+        value = value.lower().strip()
+        value = re.sub(r"\s+", " ", value)  # Eliminar espacios adicionales
+        value = re.sub(r"\ba\. m\.\b", "AM", value)
+        value = re.sub(r"\bp\. m\.\b", "PM", value)
 
         try:
             # Intentar parsear como formato de 12 horas (HH:MM:SS AM/PM)
@@ -110,7 +106,7 @@ class EventSerializer(serializers.ModelSerializer):
                 return parsed_time
             except ValueError:
                 raise serializers.ValidationError(
-                    "Invalid time format. Expected format: HH:MM:SS (24-hour) or HH:MM:SS AM/PM (12-hour)."
+                    "Invalid time format. Expected format: HH:MM:SS (24-hour) or HH:MM:%S AM/PM (12-hour)."
                 )
 
 
