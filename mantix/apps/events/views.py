@@ -252,7 +252,7 @@ def update(request):
             if init_time is not None:
                 event.init_time = init_time
             if end_time is not None:
-                event.end_time = parser.parse(end_time)
+                event.end_time = end_time
             if status_id is not None:
                 status_object = get_object_or_404(Status, pk=status_id)
                 history = HistoryStatus.objects.filter(event=event.id)
