@@ -41,7 +41,6 @@ class HistoryStatusSerializer(serializers.ModelSerializer):
 
 
 class EventSerializer(serializers.ModelSerializer):
-    end_time = serializers.CharField()
     status = serializers.PrimaryKeyRelatedField(
         queryset=Status.objects.all(), write_only=True
     )
@@ -88,26 +87,6 @@ class EventSerializer(serializers.ModelSerializer):
         for activity in activity_data:
             Activity.objects.create(event=event, **activity)
         return event
-
-    def validate_end_time(self, value):
-        value = value.lower().strip()
-        value = re.sub(r"\s+", " ", value)  # Eliminar espacios adicionales
-        value = re.sub(r"\ba\. m\.\b", "AM", value)
-        value = re.sub(r"\bp\. m\.\b", "PM", value)
-
-        try:
-            # Intentar parsear como formato de 12 horas (HH:MM:SS AM/PM)
-            parsed_time = datetime.strptime(value, "%I:%M:%S %p").time()
-            return parsed_time
-        except ValueError:
-            try:
-                # Intentar parsear como formato de 24 horas (HH:MM:SS)
-                parsed_time = datetime.strptime(value, "%H:%M:%S").time()
-                return parsed_time
-            except ValueError:
-                raise serializers.ValidationError(
-                    "Invalid time format. Expected format: HH:MM:SS (24-hour) or HH:MM:%S AM/PM (12-hour)."
-                )
 
 
 # def get_history_statuses(self, obj):

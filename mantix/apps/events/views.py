@@ -20,6 +20,7 @@ from channels.layers import get_channel_layer
 from asgiref.sync import async_to_sync
 from apps.constants import *
 from django.db import transaction
+from dateutil import parser
 
 # Create your views here.
 
@@ -251,7 +252,7 @@ def update(request):
             if init_time is not None:
                 event.init_time = init_time
             if end_time is not None:
-                event.end_time = convertir_a_time(end_time)
+                event.end_time = parser.parse(end_time)
             if status_id is not None:
                 status_object = get_object_or_404(Status, pk=status_id)
                 history = HistoryStatus.objects.filter(event=event.id)
