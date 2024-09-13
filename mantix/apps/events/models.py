@@ -1,7 +1,6 @@
 from django.db import models
 from apps.machines.models import Machine
 from apps.sign.models import User
-from datetime import date
 
 
 # Create your models here.

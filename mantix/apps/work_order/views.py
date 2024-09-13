@@ -54,10 +54,22 @@ def save(request: Request) -> Response:
 @permission_classes([IsAuthenticated])
 def findWorkOrderByEventId(request: Request, eventId: int):
     try:
-        workOrder = get_object_or_404(WorkOrder, event=eventId)
-        serializer = WorkOrderSerializer(workOrder)
-        return Response(serializer.data, status=status.HTTP_200_OK)
+        # Intentamos obtener la WorkOrder
+        workOrder = WorkOrder.objects.filter(event=eventId).first()
+
+        if workOrder:
+            # Si se encuentra la orden de trabajo, la serializamos y devolvemos
+            serializer = WorkOrderSerializer(workOrder)
+            return Response(serializer.data, status=status.HTTP_200_OK)
+        else:
+            # Si no se encuentra, devolvemos una respuesta vacía o con un mensaje adecuado
+            return Response(
+                {},
+                status=status.HTTP_200_OK,
+            )
+
     except Exception as ex:
+        # En caso de cualquier error inesperado, devolvemos un error 500
         return Response(
             {"error": str(ex)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR
         )

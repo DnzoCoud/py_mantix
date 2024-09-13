@@ -34,4 +34,14 @@ urlpatterns = [
         views.get_history_for_machine,
         name="get_history_for_machine",
     ),
+    re_path(
+        r"execute_event/(?P<event_id>\d+)",
+        views.execute_event,
+        name="execute_event",
+    ),
+    re_path(
+        r"complete_event/(?P<event_id>\d+)",
+        views.complete_event,
+        name="complete_event",
+    ),
 ]

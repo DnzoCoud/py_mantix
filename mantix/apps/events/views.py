@@ -21,6 +21,8 @@ from asgiref.sync import async_to_sync
 from apps.constants import *
 from django.db import transaction
 from dateutil import parser
+from apps.work_order.models import WorkOrder
+from .utils import *
 
 # Create your views here.
 
@@ -118,6 +120,7 @@ def save(request: Request) -> Response:
                     "event_data": serializer.data,  # Datos del evento
                 },
             )
+            WorkOrder.objects.create(event=event)
             generate_history_for_maintenance(
                 event.machine,
                 event.status,
@@ -221,6 +224,140 @@ def convertir_a_time(hora_str):
 @api_view(["PATCH"])
 @authentication_classes([TokenAuthentication])
 @permission_classes([IsAuthenticated])
+def complete_event(request, event_id: int):
+    try:
+        status_id = request.data.get("status")
+        activities = request.data.get("activity_data")
+        cause = request.data.get("cause")
+        observation = request.data.get("observation")
+        user = request.user
+        with transaction.atomic():
+            # Supongamos que tienes un WorkOrder con un ID específico
+            work_order = WorkOrder.objects.get(event__id=event_id)
+            event = work_order.event
+            machine = event.machine
+            if event:
+                status_object = get_object_or_404(Status, pk=status_id)
+
+                if status_object.id == EventStatusEnum.COMPLETADO.value:
+                    event.status = status_object
+                    work_order.cause = cause.strip()
+                    work_order.observation = observation.strip()
+                    if activities is not None:
+                        update_or_create_activities_for_event(activities, event)
+
+                    generate_history_for_maintenance(
+                        machine,
+                        status_object,
+                        "Se pone en ejecución el mantenimiento",
+                        user,
+                        event.code,
+                    )
+                else:
+                    return Response(
+                        {"error": "El estado soplo puede ser COMPLETADO"},
+                        status=status.HTTP_400_BAD_REQUEST,
+                    )
+                event.end_time = datetime.now().time()
+                event.updated_by = user
+                machine.last_maintenance = datetime.now().date()
+                event.save()
+                work_order.save()
+                machine.save()
+                serializer = EventSerializer(event)
+
+                channel_layer = get_channel_layer()
+                async_to_sync(channel_layer.group_send)(
+                    "events",  # Nombre del grupo al que enviar el mensaje
+                    {
+                        "type": "event_updated",  # Tipo de mensaje
+                        "event_id": event.id,
+                        "event_data": serializer.data,  # Datos del evento
+                    },
+                )
+                return Response(serializer.data, status=status.HTTP_201_CREATED)
+            else:
+                return Response(
+                    {
+                        "error": "Este evento no se encuentra asociado a una Orden de trabajo"
+                    },
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+    except Exception as ex:
+        return Response(
+            {"error": str(ex)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR
+        )
+
+
+@api_view(["PATCH"])
+@authentication_classes([TokenAuthentication])
+@permission_classes([IsAuthenticated])
+def execute_event(request, event_id: int):
+    try:
+        status_id = request.data.get("status")
+        activities = request.data.get("activity_data")
+        diagnosis = request.data.get("diagnosis")
+        user = request.user
+        init_time = datetime.now().time()
+
+        with transaction.atomic():
+            # Supongamos que tienes un WorkOrder con un ID específico
+            work_order = WorkOrder.objects.get(event__id=event_id)
+            event = work_order.event
+            machine = event.machine
+            if event:
+                status_object = get_object_or_404(Status, pk=status_id)
+
+                if status_object.id == EventStatusEnum.EN_EJECUCION.value:
+                    event.status = status_object
+                    work_order.diagnosis = diagnosis.strip()
+                    if activities is not None:
+                        update_or_create_activities_for_event(activities, event)
+
+                    generate_history_for_maintenance(
+                        machine,
+                        status_object,
+                        "Se pone en ejecución el mantenimiento",
+                        user,
+                        event.code,
+                    )
+                else:
+                    return Response(
+                        {"error": "El estado soplo puede ser EJECUTADO"},
+                        status=status.HTTP_400_BAD_REQUEST,
+                    )
+                event.init_time = init_time
+                event.updated_by = user
+                event.save()
+                work_order.save()
+                serializer = EventSerializer(event)
+
+                channel_layer = get_channel_layer()
+                async_to_sync(channel_layer.group_send)(
+                    "events",  # Nombre del grupo al que enviar el mensaje
+                    {
+                        "type": "event_updated",  # Tipo de mensaje
+                        "event_id": event.id,
+                        "event_data": serializer.data,  # Datos del evento
+                    },
+                )
+                return Response(serializer.data, status=status.HTTP_201_CREATED)
+            else:
+                return Response(
+                    {
+                        "error": "Este evento no se encuentra asociado a una Orden de trabajo"
+                    },
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+    except Exception as ex:
+        return Response(
+            {"error": str(ex)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR
+        )
+
+
+@api_view(["PATCH"])
+@authentication_classes([TokenAuthentication])
+@permission_classes([IsAuthenticated])
 def update(request):
     try:
         id = request.data.get("id")
@@ -244,6 +381,7 @@ def update(request):
             prev_start = event.start
             prev_end = event.end
             machine = Machine.objects.get(pk=event.machine.id)
+            workOrder = WorkOrder.objects.get(event=event)
 
             if start is not None:
                 event.start = convert_iso_date_to_yyyymmdd(start)
@@ -291,6 +429,7 @@ def update(request):
                         event.code,
                     )
                 if status_object.id == EventStatusEnum.EN_EJECUCION.value:
+                    workOrder
                     generate_history_for_maintenance(
                         machine,
                         status_object,
@@ -335,34 +474,7 @@ def update(request):
                 event.save()
 
             if activities is not None:
-                for activity_data in activities:
-                    tecnical = activity_data.get("technician")
-                    if tecnical["id"] is not None:
-                        userObject = get_object_or_404(User, pk=tecnical["id"])
-                    activity_objects = activity_data.get("activities")
-                    for activity in activity_objects:
-                        activity_id = activity.get("id")
-                        name = activity.get("name")
-                        completed = activity.get("completed")
-
-                        if activity_id:
-                            activityObj = get_object_or_404(
-                                Activity, id=activity_id, event=event
-                            )
-                            if activityObj.name != name:
-                                activityObj.name = name
-                                activityObj.save()
-                            if activityObj.completed != completed:
-                                activityObj.completed = completed
-                                activityObj.save()
-                            if activityObj.technical != userObject:
-                                activityObj.technical = userObject
-                                activityObj.save()
-
-                        else:
-                            Activity.objects.create(
-                                event=event, name=name, technical=userObject
-                            )
+                update_or_create_activities_for_event(activities, event)
 
             event.updated_by = user
             event.save()
@@ -642,17 +754,22 @@ def importEventsByExcel(request: Request):
                                     },
                                     status=status.HTTP_400_BAD_REQUEST,
                                 )
-
-                        event = Event.objects.create(
-                            start=start_date,
-                            end=end_date,
-                            created_by=request.user,
-                            machine=machine,
-                            shift=shift,
-                            status=statusObject,
-                            day=day,
+                        # Crear evento, pero no lo guardes aún
+                        events.append(
+                            Event(
+                                start=start_date,
+                                end=end_date,
+                                created_by=request.user,
+                                machine=machine,
+                                shift=shift,
+                                status=statusObject,
+                                day=day,
+                            )
                         )
-
+                    events_added = Event.objects.bulk_create(events)
+                    
+                    work_orders = []
+                    for event in events_added:
                         generate_history_for_maintenance(
                             machine,
                             statusObject,
@@ -660,9 +777,10 @@ def importEventsByExcel(request: Request):
                             request.user,
                             event.code,
                         )
-                        events.append(event)
+                        work_orders.append(WorkOrder(event=event))
+                    WorkOrder.objects.bulk_create(work_orders)
 
-                    serializer = EventSerializer(events, many=True)
+                    serializer = EventSerializer(events_added, many=True)
                     return Response(serializer.data, status=status.HTTP_200_OK)
             except Exception as ex:
                 return Response(
