@@ -301,8 +301,11 @@ def execute_event(request, event_id: int):
         init_time = datetime.now().time()
 
         with transaction.atomic():
+            event = get_object_or_404(Event, pk=event_id)
             # Supongamos que tienes un WorkOrder con un ID específico
-            work_order = WorkOrder.objects.get(event__id=event_id)
+            work_order, created = WorkOrder.objects.get_or_create(
+                event__id=event_id, defaults={"event": event}
+            )
             event = work_order.event
             machine = event.machine
             if event:
@@ -767,7 +770,7 @@ def importEventsByExcel(request: Request):
                             )
                         )
                     events_added = Event.objects.bulk_create(events)
-                    
+
                     work_orders = []
                     for event in events_added:
                         generate_history_for_maintenance(
