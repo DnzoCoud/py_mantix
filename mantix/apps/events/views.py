@@ -651,105 +651,103 @@ def findEventsByDay(request: Request):
 @permission_classes([IsAuthenticated])
 def importEventsByExcel(request: Request):
     try:
-        excel_base64 = request.data.get("excel_base64", None)
-        if excel_base64:
-            try:
-                excel_bytes = base64.b64decode(excel_base64)
-                excel_io = io.BytesIO(excel_bytes)
-                df = pd.read_excel(excel_io, header=None)
+        with transaction.atomic():
+            excel_base64 = request.data.get("excel_base64", None)
+            if excel_base64:
+                try:
+                    excel_bytes = base64.b64decode(excel_base64)
+                    excel_io = io.BytesIO(excel_bytes)
+                    df = pd.read_excel(excel_io, header=None)
 
-                # Find header row
-                header_row_idx = None
-                for i, row in df.iterrows():
-                    if (
-                        "Fecha Inicio" in row.values
-                        and "Fecha Fin" in row.values
-                        and "Maquina Afectada" in row.values
-                    ):
-                        header_row_idx = i
-                        break
+                    # Find header row
+                    header_row_idx = None
+                    for i, row in df.iterrows():
+                        if (
+                            "Fecha Inicio" in row.values
+                            and "Fecha Fin" in row.values
+                            and "Maquina Afectada" in row.values
+                        ):
+                            header_row_idx = i
+                            break
 
-                if header_row_idx is None:
-                    return Response(
-                        {
-                            "error": "No se encontró la fila del encabezado con las columnas esperadas"
-                        },
-                        status=status.HTTP_400_BAD_REQUEST,
-                    )
-
-                # Set the header row
-                df.columns = df.iloc[header_row_idx]
-                df = df.drop(index=list(range(0, header_row_idx + 1)))
-                df.reset_index(drop=True, inplace=True)
-
-                errors = []
-                for index, row in df.iterrows():
-                    try:
-                        # Convert to string if it's a datetime object
-                        start_date_str = (
-                            row["Fecha Inicio"].strftime("%Y-%m-%d")
-                            if isinstance(row["Fecha Inicio"], datetime)
-                            else str(row["Fecha Inicio"])
-                        )
-                        end_date_str = (
-                            row["Fecha Fin"].strftime("%Y-%m-%d")
-                            if isinstance(row["Fecha Fin"], datetime)
-                            else str(row["Fecha Fin"])
-                        )
-                        datetime.strptime(start_date_str, "%Y-%m-%d")
-                        datetime.strptime(end_date_str, "%Y-%m-%d")
-                    except ValueError:
-                        errors.append(
+                    if header_row_idx is None:
+                        return Response(
                             {
-                                "fila": index,
-                                "columna": "Fecha Inicio / Fecha Fin",
-                                "message": "Formato de fecha inválido",
-                            }
+                                "error": "No se encontró la fila del encabezado con las columnas esperadas"
+                            },
+                            status=status.HTTP_400_BAD_REQUEST,
                         )
 
-                    machine_name = row["Maquina Afectada"]
-                    if not Machine.objects.filter(name=machine_name).exists():
-                        errors.append(
-                            {
-                                "fila": index,
-                                "columna": "Maquina",
-                                "message": f'La máquina "{machine_name}" no existe',
-                            }
-                        )
+                    # Set the header row
+                    df.columns = df.iloc[header_row_idx]
+                    df = df.drop(index=list(range(0, header_row_idx + 1)))
+                    df.reset_index(drop=True, inplace=True)
 
-                if errors:
-                    return Response(
-                        {"error": errors}, status=status.HTTP_400_BAD_REQUEST
-                    )
-                else:
-                    events = []
+                    errors = []
                     for index, row in df.iterrows():
-                        start_date_str = (
-                            row["Fecha Inicio"].strftime("%Y-%m-%d")
-                            if isinstance(row["Fecha Inicio"], datetime)
-                            else str(row["Fecha Inicio"])
-                        )
-                        end_date_str = (
-                            row["Fecha Fin"].strftime("%Y-%m-%d")
-                            if isinstance(row["Fecha Fin"], datetime)
-                            else str(row["Fecha Fin"])
-                        )
-                        start_date = datetime.strptime(
-                            start_date_str, "%Y-%m-%d"
-                        ).date()
-                        end_date = datetime.strptime(end_date_str, "%Y-%m-%d").date()
-                        machine_name = row["Maquina Afectada"]
-                        machine = Machine.objects.filter(name=machine_name).first()
-                        shift = row["Turno"]
-                        statusObject = Status.objects.filter(id=1).first()
+                        try:
+                            start_date_str = (
+                                row["Fecha Inicio"].strftime("%Y-%m-%d")
+                                if isinstance(row["Fecha Inicio"], datetime)
+                                else str(row["Fecha Inicio"])
+                            )
+                            end_date_str = (
+                                row["Fecha Fin"].strftime("%Y-%m-%d")
+                                if isinstance(row["Fecha Fin"], datetime)
+                                else str(row["Fecha Fin"])
+                            )
+                            datetime.strptime(start_date_str, "%Y-%m-%d")
+                            datetime.strptime(end_date_str, "%Y-%m-%d")
+                        except ValueError:
+                            errors.append(
+                                {
+                                    "fila": index,
+                                    "columna": "Fecha Inicio / Fecha Fin",
+                                    "message": "Formato de fecha inválido",
+                                }
+                            )
 
-                        # Verificar si la fecha inicial existe en Day
-                        if not Day.objects.filter(date=start_date).exists():
-                            # Si no existe, crear el día
-                            day = Day.objects.create(date=start_date)
-                        else:
-                            # Si existe, verificar si está cerrado
-                            day = Day.objects.get(date=start_date)
+                        machine_name = row["Maquina Afectada"]
+                        if not Machine.objects.filter(name=machine_name).exists():
+                            errors.append(
+                                {
+                                    "fila": index,
+                                    "columna": "Maquina",
+                                    "message": f'La máquina "{machine_name}" no existe',
+                                }
+                            )
+
+                    if errors:
+                        return Response(
+                            {"error": errors}, status=status.HTTP_400_BAD_REQUEST
+                        )
+                    else:
+                        events_added = []
+                        for index, row in df.iterrows():
+                            start_date_str = (
+                                row["Fecha Inicio"].strftime("%Y-%m-%d")
+                                if isinstance(row["Fecha Inicio"], datetime)
+                                else str(row["Fecha Inicio"])
+                            )
+                            end_date_str = (
+                                row["Fecha Fin"].strftime("%Y-%m-%d")
+                                if isinstance(row["Fecha Fin"], datetime)
+                                else str(row["Fecha Fin"])
+                            )
+                            start_date = datetime.strptime(
+                                start_date_str, "%Y-%m-%d"
+                            ).date()
+                            end_date = datetime.strptime(
+                                end_date_str, "%Y-%m-%d"
+                            ).date()
+                            machine_name = row["Maquina Afectada"]
+                            machine = Machine.objects.filter(name=machine_name).first()
+                            shift = row["Turno"]
+                            statusObject = Status.objects.filter(id=1).first()
+
+                            # Verificar si la fecha inicial existe en Day
+                            day, created = Day.objects.get_or_create(date=start_date)
+
                             if day.closed:
                                 return Response(
                                     {
@@ -757,9 +755,9 @@ def importEventsByExcel(request: Request):
                                     },
                                     status=status.HTTP_400_BAD_REQUEST,
                                 )
-                        # Crear evento, pero no lo guardes aún
-                        events.append(
-                            Event(
+
+                            # Guardar el evento
+                            event = Event.objects.create(
                                 start=start_date,
                                 end=end_date,
                                 created_by=request.user,
@@ -768,32 +766,30 @@ def importEventsByExcel(request: Request):
                                 status=statusObject,
                                 day=day,
                             )
-                        )
-                    events_added = Event.objects.bulk_create(events)
+                            generate_history_for_maintenance(
+                                machine,
+                                statusObject,
+                                "Se programa el mantenimiento",
+                                request.user,
+                                event.code,
+                            )
+                            events_added.append(event)
 
-                    work_orders = []
-                    for event in events_added:
-                        generate_history_for_maintenance(
-                            machine,
-                            statusObject,
-                            "Se programa el mantenimiento",
-                            request.user,
-                            event.code,
-                        )
-                        work_orders.append(WorkOrder(event=event))
-                    WorkOrder.objects.bulk_create(work_orders)
+                        work_orders = [WorkOrder(event=event) for event in events_added]
+                        WorkOrder.objects.bulk_create(work_orders)
 
-                    serializer = EventSerializer(events_added, many=True)
-                    return Response(serializer.data, status=status.HTTP_200_OK)
-            except Exception as ex:
+                        serializer = EventSerializer(events_added, many=True)
+                        return Response(serializer.data, status=status.HTTP_200_OK)
+
+                except Exception as ex:
+                    return Response(
+                        {"error": str(ex)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR
+                    )
+            else:
                 return Response(
-                    {"error": str(ex)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR
+                    {"error": "No se proporcionó un excel en formato BASE64"},
+                    status=status.HTTP_400_BAD_REQUEST,
                 )
-        else:
-            return Response(
-                {"error": "No se proporcionó un excel en formato BASE64"},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
     except Exception as ex:
         return Response(
             {"error": str(ex)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR
