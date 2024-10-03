@@ -23,6 +23,7 @@ from django.db import transaction
 from dateutil import parser
 from apps.work_order.models import WorkOrder
 from .utils import *
+from django.utils import timezone
 
 # Create your views here.
 
@@ -32,12 +33,34 @@ from .utils import *
 @permission_classes([IsAuthenticated])
 def findAll(request) -> Response:
     try:
-
+        month = request.query_params.get("month")
+        year = request.query_params.get("year")
         auth_user = request.user
+
+        # Verifica si los parámetros están presentes y conviértelos a enteros
+        if month and year:
+            month = int(month)
+            year = int(year)
+        else:
+            return Response(
+                {"error": "Los parámetros de mes y año son requeridos."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        # Filtrar eventos según el mes y año
+        start_date = timezone.datetime(year, month, 1)
+        if month == 12:
+            end_date = timezone.datetime(year + 1, 1, 1)
+        else:
+            end_date = timezone.datetime(year, month + 1, 1)
+
         if auth_user.role.id == 7:
             events = (
                 Event.objects.filter(
-                    deleted=False, machine__location__area__director=auth_user.id
+                    deleted=False,
+                    machine__location__area__director=auth_user.id,
+                    start__gte=start_date,
+                    end__lt=end_date,
                 )
                 .annotate(
                     shift_order=Case(
@@ -51,7 +74,11 @@ def findAll(request) -> Response:
             )
         else:
             events = (
-                Event.objects.filter(deleted=False)
+                Event.objects.filter(
+                    deleted=False,
+                    start__gte=start_date,
+                    end__lt=end_date,
+                )
                 .annotate(
                     shift_order=Case(
                         When(shift="A", then=0),
