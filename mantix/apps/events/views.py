@@ -24,6 +24,7 @@ from dateutil import parser
 from apps.work_order.models import WorkOrder
 from .utils import *
 from django.utils import timezone
+from apps.areas.models import Area
 
 # Create your views here.
 
@@ -59,6 +60,25 @@ def findAll(request) -> Response:
                 Event.objects.filter(
                     deleted=False,
                     machine__location__area__director=auth_user.id,
+                    start__gte=start_date,
+                    end__lt=end_date,
+                )
+                .annotate(
+                    shift_order=Case(
+                        When(shift="A", then=0),
+                        When(shift="B", then=1),
+                        When(shift="K", then=2),
+                        output_field=IntegerField(),
+                    )
+                )
+                .order_by("shift_order")
+            )
+        elif auth_user.role.id == 8:  # Visualizador de culinary
+            culinary_area = Area.objects.get(name="Culinary")
+            events = (
+                Event.objects.filter(
+                    deleted=False,
+                    machine__location__area=culinary_area,
                     start__gte=start_date,
                     end__lt=end_date,
                 )

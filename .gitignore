@@ -139,3 +139,5 @@ GitHub.sublime-settings
 
 
 *.tar
+
+/staticfiles/
